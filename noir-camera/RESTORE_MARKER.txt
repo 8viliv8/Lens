@@ -1,0 +1,1 @@
+Restored from confirmed working camera commit b34f6402aecd96c3754da9ec5042eb111491d788 on 2026-10-01.
