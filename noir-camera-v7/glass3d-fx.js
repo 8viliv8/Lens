@@ -1,16 +1,16 @@
 (()=>{
-function apply(src,seed=1,film='film'){
+function apply(src,seed=1,film='film',rects=null,view=.45){
  const w=src.width,h=src.height,out=document.createElement('canvas');out.width=w;out.height=h;
  const q=out.getContext('2d');q.drawImage(src,0,0);
  let state=(seed>>>0)||1;const rnd=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296};
- const boxes=[];const n=7+Math.floor(rnd()*6);
- const angle=.25+rnd()*.25,tilt=.10+rnd()*.13,sign=rnd()<.5?-1:1;
+ const boxes=[];const n=rects&&rects.length?Math.min(35,rects.length):7+Math.floor(rnd()*6);
+ const angle=.25+rnd()*.25,tilt=.10+rnd()*.13,sign=rnd()<.5?-1:1;const camera=(view-.5)*2;
  for(let i=0;i<n;i++){
-  const bw=w*(.075+rnd()*.22),bh=h*(.055+rnd()*.22);
-  const x=rnd()*(w-bw),y=rnd()*(h-bh);
+  const item=rects&&rects.length?rects[i]:null;const bw=item?Math.max(3,item.w):w*(.075+rnd()*.22),bh=item?Math.max(3,item.h):h*(.055+rnd()*.22);
+  const x=item?item.x:rnd()*(w-bw),y=item?item.y:rnd()*(h-bh);
   const depth=(.045+rnd()*.23)*Math.min(w,h);
-  const dx=sign*depth*(.65+angle),dy=-depth*(.22+tilt);
-  const shift=(rnd()-.5)*Math.min(w,h)*.07;
+  const dx=depth*(camera*1.65+(Math.abs(camera)<.05?sign*.12:0)),dy=-depth*(.13+tilt)*(Math.abs(camera)*.65+.3);
+  const shift=item?0:(rnd()-.5)*Math.min(w,h)*.07;
   const near=[[x+shift,y],[x+bw+shift,y],[x+bw+shift,y+bh],[x+shift,y+bh]];
   const far=near.map(p=>[p[0]+dx,p[1]+dy]);
   boxes.push({near,far,x,y,bw,bh,depth,order:depth+rnd()*w*.15,alpha:.10+rnd()*.13});
@@ -32,7 +32,7 @@ function apply(src,seed=1,film='film'){
   }
   if(film==='film'){
    q.save();poly(a);q.clip();q.globalAlpha=.24;
-   q.drawImage(src,x,y,bw,bh,a[0][0],a[0][1],bw,bh);
+   q.drawImage(src,Math.max(0,x),Math.max(0,y),Math.min(bw,w-Math.max(0,x)),Math.min(bh,h-Math.max(0,y)),a[0][0],a[0][1],bw,bh);
    q.restore();
    fill(a,'rgba(214,233,241,.085)');
   }else{
