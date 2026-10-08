@@ -1,5 +1,5 @@
 (()=>{
-let renderer=null,scene=null,camera=null,group=null,canvas=null,theta=.55,phi=.18,dist=2.8,active=false,last=null,pointers=new Map(),pinch=0,ready=false;
+let renderer=null,scene=null,camera=null,group=null,canvas=null,theta=.55,phi=.18,dist=2.8,active=false,last=null,pointers=new Map(),pinch=0,ready=false,space='dark';
 function init(){
  if(!window.THREE)return false;
  if(renderer)return true;
@@ -16,9 +16,9 @@ function init(){
 }
 function clear(){if(!group)return;while(group.children.length){const obj=group.children[0];group.remove(obj);obj.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m.map)m.map.dispose();m.dispose()})}})}}
 function draw(){if(!active||!renderer)return;const rect=document.getElementById('stage').getBoundingClientRect();if(!rect.width||!rect.height)return;renderer.setSize(rect.width,rect.height,false);camera.aspect=rect.width/rect.height;camera.position.set(Math.sin(theta)*Math.cos(phi)*dist,Math.sin(phi)*dist,Math.cos(theta)*Math.cos(phi)*dist);camera.lookAt(0,0,0);camera.updateProjectionMatrix();renderer.render(scene,camera)}
-function show(src,rects,film='film'){
+function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?0xffffff:0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(space==='white'?0x526b78:0xd3e8ef);if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function show(src,rects,film='film'){
  if(!init())return false;
- clear();const T=THREE,w=src.width,h=src.height,unit=Math.max(w,h),aspect=w/h;
+ clear();renderer.setClearColor(space==='white'?0xffffff:0x101014,1);const T=THREE,w=src.width,h=src.height,unit=Math.max(w,h),aspect=w/h;
  // Photograph remains a spatial reference plane behind the volumes.
  const background=new T.Mesh(new T.PlaneGeometry(w/unit*1.75,h/unit*1.75),new T.MeshBasicMaterial({map:new T.CanvasTexture(src),side:T.DoubleSide,transparent:true,opacity:.90,depthWrite:false}));
  background.position.z=-.48;group.add(background);
@@ -28,9 +28,9 @@ function show(src,rects,film='film'){
   const x=(r.x+r.w/2-w/2)/unit*1.75,y=(h/2-r.y-r.h/2)/unit*1.75,z=.04+(i%7)*.035;
   const obj=new T.Group();obj.position.set(x,y,z);group.add(obj);
   const geo=new T.BoxGeometry(bw,bh,depth);
-  const glass=new T.Mesh(geo,new T.MeshPhongMaterial({color:0xc6e9f2,transparent:true,opacity:film==='clear'?.045:.075,side:T.DoubleSide,depthWrite:false,shininess:95}));
-  obj.add(glass);
-  const edges=new T.LineSegments(new T.EdgesGeometry(geo),new T.LineBasicMaterial({color:0xd3e8ef,transparent:true,opacity:.78,depthTest:true}));obj.add(edges);
+  const glass=new T.Mesh(geo,new T.MeshPhongMaterial({color:space==='white'?0x83a9b7:0xc6e9f2,transparent:true,opacity:film==='clear'?.045:.075,side:T.DoubleSide,depthWrite:false,shininess:95}));
+  glass.userData.glassBody=true;obj.add(glass);
+  const edges=new T.LineSegments(new T.EdgesGeometry(geo),new T.LineBasicMaterial({color:space==='white'?0x526b78:0xd3e8ef,transparent:true,opacity:.78,depthTest:true}));edges.userData.glassEdges=true;obj.add(edges);
   if(film==='film'){
    const patch=document.createElement('canvas');patch.width=Math.min(512,Math.max(16,Math.round(r.w)));patch.height=Math.min(512,Math.max(16,Math.round(r.h)));
    const ctx=patch.getContext('2d');ctx.drawImage(src,Math.max(0,r.x),Math.max(0,r.y),Math.max(1,Math.min(r.w,w-Math.max(0,r.x))),Math.max(1,Math.min(r.h,h-Math.max(0,r.y))),0,0,patch.width,patch.height);
@@ -43,6 +43,6 @@ function show(src,rects,film='film'){
 function hide(){active=false;if(canvas)canvas.style.display='none'}
 function angle(v){theta=(v-.5)*Math.PI*1.8;draw()}
 function snapshot(){if(!active||!renderer)return null;draw();const c=document.createElement('canvas');c.width=canvas.width;c.height=canvas.height;c.getContext('2d').drawImage(canvas,0,0);return c}
-window.GlassOrbit={show,hide,angle,snapshot,isActive:()=>active,redraw:draw};
+window.GlassOrbit={show,hide,angle,setSpace,snapshot,isActive:()=>active,redraw:draw};
 window.addEventListener('resize',()=>{if(active)draw()});
 })();
