@@ -19,10 +19,20 @@ function draw(){if(!active||!renderer)return;const rect=document.getElementById(
 function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?0xffffff:0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(space==='white'?0x526b78:0xd3e8ef);if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function setShape(m){shape=['box','sculpt','fold'].includes(m)?m:'box';if(lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film)}function show(src,rects,film='film'){
  if(!init())return false;
  lastScene={src,rects,film};clear();renderer.setClearColor(space==='white'?0xffffff:0x101014,1);const T=THREE,w=src.width,h=src.height,unit=Math.max(w,h),aspect=w/h;
- // Photograph remains a spatial reference plane behind the volumes.
- const background=new T.Mesh(new T.PlaneGeometry(w/unit*1.75,h/unit*1.75),new T.MeshBasicMaterial({map:new T.CanvasTexture(src),side:T.DoubleSide,transparent:true,opacity:.90,depthWrite:false}));
- background.position.z=-.48;group.add(background);
- const candidates=(rects||[]).slice(0,32);
+ // Only captured CUT-UP rectangles become 3D objects; no original-photo backdrop.
+ const candidates=[];
+ for(const r of (rects||[])){
+  if(candidates.length>=32)break;
+  if(!r||r.w<2||r.h<2||r.x>=w||r.y>=h||r.x+r.w<=0||r.y+r.h<=0)continue;
+  const q={x:Math.max(0,r.x),y:Math.max(0,r.y),w:Math.min(w,r.x+r.w)-Math.max(0,r.x),h:Math.min(h,r.y+r.h)-Math.max(0,r.y)};
+  if(q.w<2||q.h<2)continue;
+  const overlap=candidates.some(a=>{
+   const ix=Math.max(0,Math.min(q.x+q.w,a.x+a.w)-Math.max(q.x,a.x));
+   const iy=Math.max(0,Math.min(q.y+q.h,a.y+a.h)-Math.max(q.y,a.y));
+   return ix*iy>Math.min(q.w*q.h,a.w*a.h)*.12;
+  });
+  if(!overlap)candidates.push(q);
+ }
  for(let i=0;i<candidates.length;i++){
   const r=candidates[i],bw=Math.max(.012,r.w/unit*1.75),bh=Math.max(.012,r.h/unit*1.75),depth=.07+((i*17%11)/11)*.38;
   const x=(r.x+r.w/2-w/2)/unit*1.75,y=(h/2-r.y-r.h/2)/unit*1.75,z=.04+(i%7)*.035;
