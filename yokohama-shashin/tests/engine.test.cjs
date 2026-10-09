@@ -1,0 +1,37 @@
+const assert=require('node:assert/strict');const {extract,render,pigments}=require('../engine.js');
+const options={mode:'source',preset:'sea',color:75,auto:100,softness:0,paper:0,grain:0};
+const gray=new Uint8ClampedArray([0,0,0,255,80,80,80,255,128,128,128,255,200,200,200,255,255,255,255,255]);
+assert.deepEqual(render(gray,5,1,options),gray,'Neutral photo stays neutral');
+const src=new Uint8ClampedArray([210,70,70,255,50,115,60,255,60,90,190,255]);
+const out=render(src,3,1,options,null,extract(src,3,1,0));
+assert.ok(out[0]>out[1],'Red source maps to pink pigment');assert.ok(out[5]>out[4],'Green source maps to muted green');assert.ok(out[10]>out[8],'Blue source maps to blue pigment');
+for(const preset of Object.keys(pigments)){const result=render(src,3,1,{...options,preset});for(let i=0;i<src.length;i+=4){const l=a=>.2126*a[i]+.7152*a[i+1]+.0722*a[i+2];assert.ok(Math.abs(l(result)-l(src))<.7,'Original luminance/detail preserved');assert.equal(result[i+3],src[i+3]);}}
+const zero=render(src,3,1,{...options,color:0});for(let i=0;i<zero.length;i+=4)assert.equal(zero[i],zero[i+1]);
+const width=128,height=40,edge=new Uint8ClampedArray(width*height*4);for(let y=0;y<height;y++)for(let x=0;x<width;x++)edge.set(x<64?[190,65,60,255]:[45,80,180,255],(y*width+x)*4);
+const hard=extract(edge,width,height,0),soft=extract(edge,width,height,100),at=(20*width+63)*3;assert.notEqual(hard.data[at],soft.data[at],'Only chroma layer softens at boundaries');
+const image=new Uint8ClampedArray(1024*1024*4);for(let i=0;i<image.length;i+=4)image.set([150,100,75,255],i);const t=performance.now();render(image,1024,1024,options);console.log('PASS: hue-aware remapping, neutral input, luminance/alpha fidelity, zero color, softened chroma; 1MP rendering '+Math.round(performance.now()-t)+'ms');
+const historic={...options,mode:'reference',color:80,auto:90,paper:78,grain:48,aging:50,edges:65};
+const ref=render(edge,width,height,historic);assert.deepEqual(ref,render(edge,width,height,historic),'Paper texture remains deterministic');
+assert.deepEqual(render(gray,5,1,{...historic,color:0,paper:0,grain:0,aging:0,edges:0}),gray,'All layers disabled returns monochrome detail');
+for(let i=0;i<ref.length;i+=4)assert.equal(ref[i+3],edge[i+3]);
+const neutral=new Uint8ClampedArray([110,110,110,255,180,180,180,255]);const split=render(neutral,2,1,{...historic,aging:0,grain:0,edges:0});assert.ok(split[2]>split[0],'Mid-gray receives blue-gray pigment');assert.ok(split[4]>split[6],'Highlights remain warm parchment');
+assert.notDeepEqual(render(edge,width,height,{...historic,edges:0}),ref,'Worn edge layer is optional');
+console.log('PASS: reference palette, parchment highlights, deterministic patina, optional wear, alpha preservation');
+const pigmentOpt={...options,mode:'pigment',threshold:18,pooling:30};
+assert.deepEqual(render(gray,5,1,pigmentOpt),gray,'Neutral luminance never receives invented pigments');
+const skin=new Uint8ClampedArray([190,165,155,255,90,90,90,255,65,120,170,255]);
+const recolored=render(skin,3,1,{...pigmentOpt,softness:0});assert.ok(recolored[0]>recolored[2],'Warm source maps to blush, never blue');assert.equal(recolored[4],recolored[6],'Neutral stays neutral');assert.ok(recolored[10]>recolored[8],'Source blue maps to blue-gray');
+const softened=render(skin,3,1,{...pigmentOpt,softness:100});assert.equal(softened[4],softened[6],'Soft pigment cannot bleed onto a neutral neighbor');
+const skinMap=extract(skin,3,1,0);assert.deepEqual(render(skin,3,1,pigmentOpt,null,skinMap),render(skin,3,1,pigmentOpt),'Cached map matches uncached output');
+const monochromePigment=render(skin,3,1,{...pigmentOpt,color:0});for(let i=0;i<monochromePigment.length;i+=4)assert.equal(monochromePigment[i],monochromePigment[i+2]);
+assert.deepEqual(render(skin,3,1,{...pigmentOpt,aging:100,edges:100}),render(skin,3,1,pigmentOpt),'Paper damage excluded from pigment mode');
+console.log('PASS: fixed-pigment mapping, neutral protection, no blue on warm source, blur leakage prevention, preview/export map parity');
+const donor=new Uint8ClampedArray([220,70,70,255,220,220,70,255,70,220,70,255,70,220,220,255,70,70,220,255,200,70,220,255,128,128,128,255]);
+const extracted=require('../engine.js').extractPalette(donor,7,1);assert.deepEqual(extracted.counts,[1,1,1,1,1,1]);for(const c of extracted.colors){assert.ok(Math.max(...c)-Math.min(...c)<=66,'Extracted donor pigments are muted');assert.ok(Math.abs(.2126*c[0]+.7152*c[1]+.0722*c[2]-185)<1,'Donor luminance does not replace B luminance');}
+const redDonor=require('../engine.js').extractPalette(new Uint8ClampedArray([220,70,70,255]),1,1);assert.equal(redDonor.counts[0],1);assert.equal(redDonor.counts[4],0);
+const b=new Uint8ClampedArray([70,70,180,255,180,70,70,255,100,100,100,255]);const custom={...pigmentOpt,softness:0,customPalette:redDonor.colors};const mapped=render(b,3,1,custom);
+assert.equal(mapped[0],mapped[2],'Hue missing from A remains monochrome on B');assert.ok(mapped[4]>mapped[6],'A red pigment is applied to B red location');assert.equal(mapped[8],mapped[10],'Neutral B remains neutral');
+const fullMapped=render(b,3,1,{...custom,customPalette:extracted.colors});assert.ok(fullMapped[2]>fullMapped[0],'A blue goes to B blue position, regardless of A position');
+assert.deepEqual(require('../engine.js').extractPalette(gray,5,1).counts,[0,0,0,0,0,0],'Monochrome A is not treated as a color donor');
+assert.deepEqual(render(b,3,1,custom),render(b,3,1,custom,null,extract(b,3,1,0)),'Custom palette cached map parity');
+console.log('PASS: A palette extraction/desaturation, missing-hue policy, B color positions and luminance, neutral A rejection, custom export parity');
