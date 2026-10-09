@@ -1,5 +1,5 @@
 (()=>{
-let renderer=null,scene=null,camera=null,group=null,canvas=null,theta=.55,phi=.18,dist=2.8,active=false,last=null,pointers=new Map(),pinch=0,ready=false,space='dark',shape='box',lastScene=null;
+let renderer=null,scene=null,camera=null,group=null,canvas=null,theta=.55,phi=.18,dist=2.8,active=false,last=null,pointers=new Map(),pinch=0,ready=false,space='dark',shape='extrude',lastScene=null;
 function init(){
  if(!window.THREE)return false;
  if(renderer)return true;
@@ -16,7 +16,7 @@ function init(){
 }
 function sxSafe(i,bw){return Math.sin((i+1)*3.71)*bw*.08}function clear(){if(!group)return;while(group.children.length){const obj=group.children[0];group.remove(obj);obj.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m.map)m.map.dispose();m.dispose()})}})}}
 function draw(){if(!active||!renderer)return;const rect=document.getElementById('stage').getBoundingClientRect();if(!rect.width||!rect.height)return;renderer.setSize(rect.width,rect.height,false);camera.aspect=rect.width/rect.height;camera.position.set(Math.sin(theta)*Math.cos(phi)*dist,Math.sin(phi)*dist,Math.cos(theta)*Math.cos(phi)*dist);camera.lookAt(0,0,0);camera.updateProjectionMatrix();renderer.render(scene,camera)}
-function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?0xffffff:0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(space==='white'?0x526b78:0xd3e8ef);if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function setShape(m){shape=['box','sculpt','fold'].includes(m)?m:'box';if(lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film)}function show(src,rects,film='film'){
+function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?0xffffff:0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(space==='white'?0x526b78:0xd3e8ef);if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function setShape(m){shape=['box','sculpt','fold','extrude'].includes(m)?m:'box';if(lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film)}function show(src,rects,film='film'){
  if(!init())return false;
  lastScene={src,rects,film};clear();renderer.setClearColor(space==='white'?0xffffff:0x101014,1);const T=THREE,w=src.width,h=src.height,unit=Math.max(w,h),aspect=w/h;
  // Only captured CUT-UP rectangles become 3D objects; no original-photo backdrop.
@@ -35,7 +35,7 @@ function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){rendere
  }
  for(let i=0;i<candidates.length;i++){
   const r=candidates[i],bw=Math.max(.012,r.w/unit*1.75),bh=Math.max(.012,r.h/unit*1.75),depth=.07+((i*17%11)/11)*.38;
-  const x=(r.x+r.w/2-w/2)/unit*1.75,y=(h/2-r.y-r.h/2)/unit*1.75,z=.04+(i%7)*.035;
+  const x=(r.x+r.w/2-w/2)/unit*1.75,y=(h/2-r.y-r.h/2)/unit*1.75,z=shape==='extrude'?-depth/2:.04+(i%7)*.035;
   const obj=new T.Group();obj.position.set(x,y,z);group.add(obj);
   const geo=new T.BoxGeometry(bw,bh,depth);if(shape==='sculpt'||shape==='fold'){const p=geo.attributes.position;const a=Math.sin((i+1)*12.9898)*43758.5453,rand=n=>{const x=Math.sin((i+1)*79.31+n*113.7+a)*43758.5453;return x-Math.floor(x)};const sx=(rand(1)-.5)*bw*(shape==='fold'?1.1:.65),sy=(rand(2)-.5)*bh*(shape==='fold'?.9:.65),twist=(rand(3)-.5)*(shape==='fold'?1.1:.65);for(let k=0;k<p.count;k++){let xx=p.getX(k),yy=p.getY(k),zz=p.getZ(k);if(zz>0){xx+=sx+yy*twist;yy+=sy-xx*twist*.3}else{xx-=sx*.28;yy-=sy*.28}p.setXYZ(k,xx,yy,zz)}p.needsUpdate=true;geo.computeVertexNormals();obj.position.z+=((rand(4)-.5)*.36);obj.rotation.z=(rand(5)-.5)*.28;obj.rotation.y=(rand(6)-.5)*.34;}
   const glass=new T.Mesh(geo,new T.MeshPhongMaterial({color:space==='white'?0x83a9b7:0xc6e9f2,transparent:true,opacity:shape==='fold'?(film==='clear'?.06:.10):shape==='sculpt'?(film==='clear'?.10:.16):(film==='clear'?.045:.075),side:T.DoubleSide,depthWrite:false,shininess:95}));
