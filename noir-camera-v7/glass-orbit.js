@@ -1,11 +1,11 @@
 (()=>{
-let renderer=null,scene=null,camera=null,group=null,canvas=null,theta=.55,phi=.18,dist=2.8,active=false,last=null,pointers=new Map(),pinch=0,ready=false,space='dark',shape='extrude',lastScene=null;
-const floatSettings={screen:true,opacity:.22,blur:10,glow:.25,depth:1,parallax:.35};
-let backScreen=null,backGlow=null;
+let renderer=null,scene=null,camera=null,group=null,canvas=null,theta=(.72-.5)*Math.PI*1.8,phi=.18,dist=2.8,active=false,last=null,pointers=new Map(),pinch=0,ready=false,space='dark',shape='extrude',lastScene=null;
+const floatSettings={screen:true,opacity:.22,blur:10,glow:.25,depth:1,parallax:.35,layers:12,filmOpacity:.82,colour:.55};
+let backScreen=null,backGlow=null,floatStarted=false;
 function setFloat(key,value){
  if(!(key in floatSettings))return;
  if(key==='screen')floatSettings.screen=!!value;
- else {const limits={opacity:.6,blur:24,glow:1,depth:2,parallax:1};if(!Number.isFinite(Number(value)))return;floatSettings[key]=Math.max(0,Math.min(limits[key],Number(value)))}
+ else {const limits={opacity:.6,blur:24,glow:1,depth:2,parallax:1,layers:24,filmOpacity:1,colour:1};if(!Number.isFinite(Number(value)))return;floatSettings[key]=key==='layers'?Math.round(Math.max(6,Math.min(24,Number(value)))):Math.max(0,Math.min(limits[key],Number(value)))}
  if(shape==='float'&&lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original);
 }
 function addBackScreen(src){
@@ -15,10 +15,10 @@ function addBackScreen(src){
  const texture=new T.CanvasTexture(cv);
  const width=(src.width+pad*2/scale)/unit*1.75,height=(src.height+pad*2/scale)/unit*1.75;
  backScreen=new T.Mesh(new T.PlaneGeometry(width,height),new T.MeshBasicMaterial({map:texture,transparent:true,opacity:floatSettings.opacity,side:T.DoubleSide,depthWrite:false}));
- backScreen.position.z=-.35-floatSettings.depth*.15;backScreen.renderOrder=-2;group.add(backScreen);
+ backScreen.position.z=-.55-floatSettings.depth*.44;backScreen.renderOrder=-2;group.add(backScreen);
  const glowCanvas=document.createElement('canvas');glowCanvas.width=cv.width;glowCanvas.height=cv.height;
  const glowCtx=glowCanvas.getContext('2d');glowCtx.filter='blur(24px) brightness(1.5)';glowCtx.drawImage(cv,0,0);
- backGlow=new T.Mesh(new T.PlaneGeometry(width,height),new T.MeshBasicMaterial({map:new T.CanvasTexture(glowCanvas),transparent:true,opacity:floatSettings.opacity*floatSettings.glow,side:T.DoubleSide,depthWrite:false,blending:T.AdditiveBlending}));
+ backGlow=new T.Mesh(new T.PlaneGeometry(width,height),new T.MeshBasicMaterial({map:new T.CanvasTexture(glowCanvas),transparent:true,opacity:floatSettings.opacity*floatSettings.glow,side:T.DoubleSide,depthWrite:false,blending:space==='white'?T.NormalBlending:T.AdditiveBlending}));
  backGlow.position.z=backScreen.position.z-.005;backGlow.renderOrder=-3;group.add(backGlow);
 }
 function init(){
@@ -36,12 +36,22 @@ function init(){
  ready=true;return true
 }
 function sxSafe(i,bw){return Math.sin((i+1)*3.71)*bw*.08}function clear(){backScreen=null;backGlow=null;if(!group)return;while(group.children.length){const obj=group.children[0];group.remove(obj);obj.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m.map)m.map.dispose();m.dispose()})}})}}
-function draw(){if(!active||!renderer)return;const rect=document.getElementById('stage').getBoundingClientRect();if(!rect.width||!rect.height)return;renderer.setSize(rect.width,rect.height,false);if(shape==='extrude'){if(!camera.isOrthographicCamera)camera=new THREE.OrthographicCamera(-1,1,1,-1,.01,100);const a=rect.width/rect.height,span=dist;camera.left=-span*a/2;camera.right=span*a/2;camera.top=span/2;camera.bottom=-span/2}else{if(!camera.isPerspectiveCamera)camera=new THREE.PerspectiveCamera(42,1,.01,100);camera.aspect=rect.width/rect.height}camera.position.set(Math.sin(theta)*Math.cos(phi)*dist,Math.sin(phi)*dist,Math.cos(theta)*Math.cos(phi)*dist);camera.lookAt(0,0,0);camera.updateProjectionMatrix();if(backScreen){const shift=floatSettings.parallax*.3;backScreen.position.x=Math.sin(theta)*shift;backScreen.position.y=Math.sin(phi)*shift;backGlow.position.x=backScreen.position.x;backGlow.position.y=backScreen.position.y}renderer.render(scene,camera)}
-function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?0xffffff:0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(shape==='extrude'?0x111111:(space==='white'?0x526b78:0xd3e8ef));if(o.userData&&o.userData.floor)o.material.color.setHex(space==='white'?0xf4f4f4:0x1a1a20);if(o.userData&&o.userData.floorShadow)o.material.opacity=space==='white'?.56:.45;if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function setShape(m){shape=['box','sculpt','fold','extrude','float'].includes(m)?m:'box';if(lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original)}function show(src,rects,film='film',original=src){
+function draw(){if(!active||!renderer)return;const rect=document.getElementById('stage').getBoundingClientRect();if(!rect.width||!rect.height)return;renderer.setSize(rect.width,rect.height,false);if(shape==='extrude'){if(!camera.isOrthographicCamera)camera=new THREE.OrthographicCamera(-1,1,1,-1,.01,100);const a=rect.width/rect.height,span=dist;camera.left=-span*a/2;camera.right=span*a/2;camera.top=span/2;camera.bottom=-span/2}else{if(!camera.isPerspectiveCamera)camera=new THREE.PerspectiveCamera(42,1,.01,100);camera.aspect=rect.width/rect.height}camera.position.set(Math.sin(theta)*Math.cos(phi)*dist,Math.sin(phi)*dist,Math.cos(theta)*Math.cos(phi)*dist);camera.lookAt(0,0,0);camera.updateProjectionMatrix();if(backScreen){const shift=floatSettings.parallax*.3;backScreen.position.x=Math.sin(theta)*shift;backScreen.position.y=Math.sin(phi)*shift;backGlow.position.x=backScreen.position.x;backGlow.position.y=backScreen.position.y}if(shape==='float'){
+ const eye=new THREE.Vector3();camera.getWorldPosition(eye);
+ // Transparent sheets sort by distance, including when orbiting behind them.
+ for(const child of group.children){const p=new THREE.Vector3();child.getWorldPosition(p);const order=-Math.round(p.distanceToSquared(eye)*10000);child.traverse(o=>{if(o.isMesh||o.isLineSegments)o.renderOrder=order})}
+}renderer.render(scene,camera)}
+function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?(shape==='float'?0xf0f1ef:0xffffff):0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(backGlow){backGlow.material.blending=space==='white'?THREE.NormalBlending:THREE.AdditiveBlending;backGlow.material.needsUpdate=true}if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(shape==='extrude'?0x111111:(space==='white'?0x526b78:0xd3e8ef));if(o.userData&&o.userData.floor)o.material.color.setHex(space==='white'?0xf4f4f4:0x1a1a20);if(o.userData&&o.userData.floorShadow)o.material.opacity=space==='white'?.56:.45;if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function setShape(m){shape=['box','sculpt','fold','extrude','float'].includes(m)?m:'box';
+ if(shape==='float'&&!floatStarted){floatStarted=true;space='white';theta=.30;phi=.08;dist=3.0}
+if(lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original)}function show(src,rects,film='film',original=src){
  if(!init())return false;
- lastScene={src,rects,film,original};clear();renderer.setClearColor(space==='white'?0xffffff:0x101014,1);const T=THREE,w=src.width,h=src.height,unit=Math.max(w,h),aspect=w/h;
+ lastScene={src,rects,film,original};clear();renderer.setClearColor(space==='white'?(shape==='float'?0xf0f1ef:0xffffff):0x101014,1);const T=THREE,w=src.width,h=src.height,unit=Math.max(w,h),aspect=w/h;
  // The uncut photograph belongs only to FLOAT; other modes retain their geometry.
  if(shape==='float'&&floatSettings.screen)addBackScreen(original);
+ if(shape==='float'&&window.FloatLayers){
+  FloatLayers.build(group,original,src,rects,film,floatSettings);
+  active=true;canvas.style.display='block';document.getElementById('c').style.display='none';draw();return true;
+ }
  const candidates=[];
  for(const r of (rects||[])){
   if(candidates.length>=(shape==='extrude'?68:32))break;
@@ -92,6 +102,6 @@ function addFloorAndShadows(T,rects,w,h,unit){
 function hide(){active=false;if(canvas)canvas.style.display='none'}
 function angle(v){theta=(v-.5)*Math.PI*1.8;draw()}
 function snapshot(){if(!active||!renderer)return null;draw();const c=document.createElement('canvas');c.width=canvas.width;c.height=canvas.height;c.getContext('2d').drawImage(canvas,0,0);return c}
-window.GlassOrbit={show,hide,angle,setSpace,setShape,setFloat,snapshot,isActive:()=>active,redraw:draw};
+window.GlassOrbit={show,hide,angle,setSpace,setShape,setFloat,getShape:()=>shape,getSpace:()=>space,getView:()=>Math.max(0,Math.min(1,theta/(Math.PI*1.8)+.5)),snapshot,isActive:()=>active,redraw:draw};
 window.addEventListener('resize',()=>{if(active)draw()});
 })();
