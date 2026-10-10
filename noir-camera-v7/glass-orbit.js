@@ -1,5 +1,26 @@
 (()=>{
 let renderer=null,scene=null,camera=null,group=null,canvas=null,theta=.55,phi=.18,dist=2.8,active=false,last=null,pointers=new Map(),pinch=0,ready=false,space='dark',shape='extrude',lastScene=null;
+const floatSettings={screen:true,opacity:.22,blur:10,glow:.25,depth:1,parallax:.35};
+let backScreen=null,backGlow=null;
+function setFloat(key,value){
+ if(!(key in floatSettings))return;
+ if(key==='screen')floatSettings.screen=!!value;
+ else {const limits={opacity:.6,blur:24,glow:1,depth:2,parallax:1};if(!Number.isFinite(Number(value)))return;floatSettings[key]=Math.max(0,Math.min(limits[key],Number(value)))}
+ if(shape==='float'&&lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original);
+}
+function addBackScreen(src){
+ const T=THREE,unit=Math.max(src.width,src.height),cv=document.createElement('canvas');
+ const scale=Math.min(1,1024/unit),pad=80;cv.width=Math.round(src.width*scale)+pad*2;cv.height=Math.round(src.height*scale)+pad*2;
+ const ctx=cv.getContext('2d');ctx.filter='blur('+floatSettings.blur+'px)';ctx.drawImage(src,pad,pad,cv.width-pad*2,cv.height-pad*2);
+ const texture=new T.CanvasTexture(cv);
+ const width=(src.width+pad*2/scale)/unit*1.75,height=(src.height+pad*2/scale)/unit*1.75;
+ backScreen=new T.Mesh(new T.PlaneGeometry(width,height),new T.MeshBasicMaterial({map:texture,transparent:true,opacity:floatSettings.opacity,side:T.DoubleSide,depthWrite:false}));
+ backScreen.position.z=-.35-floatSettings.depth*.15;backScreen.renderOrder=-2;group.add(backScreen);
+ const glowCanvas=document.createElement('canvas');glowCanvas.width=cv.width;glowCanvas.height=cv.height;
+ const glowCtx=glowCanvas.getContext('2d');glowCtx.filter='blur(24px) brightness(1.5)';glowCtx.drawImage(cv,0,0);
+ backGlow=new T.Mesh(new T.PlaneGeometry(width,height),new T.MeshBasicMaterial({map:new T.CanvasTexture(glowCanvas),transparent:true,opacity:floatSettings.opacity*floatSettings.glow,side:T.DoubleSide,depthWrite:false,blending:T.AdditiveBlending}));
+ backGlow.position.z=backScreen.position.z-.005;backGlow.renderOrder=-3;group.add(backGlow);
+}
 function init(){
  if(!window.THREE)return false;
  if(renderer)return true;
@@ -14,12 +35,13 @@ function init(){
  canvas.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(1.05,Math.min(8,dist*(e.deltaY>0?1.08:.92)));draw()},{passive:false});
  ready=true;return true
 }
-function sxSafe(i,bw){return Math.sin((i+1)*3.71)*bw*.08}function clear(){if(!group)return;while(group.children.length){const obj=group.children[0];group.remove(obj);obj.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m.map)m.map.dispose();m.dispose()})}})}}
-function draw(){if(!active||!renderer)return;const rect=document.getElementById('stage').getBoundingClientRect();if(!rect.width||!rect.height)return;renderer.setSize(rect.width,rect.height,false);if(shape==='extrude'){if(!camera.isOrthographicCamera)camera=new THREE.OrthographicCamera(-1,1,1,-1,.01,100);const a=rect.width/rect.height,span=dist;camera.left=-span*a/2;camera.right=span*a/2;camera.top=span/2;camera.bottom=-span/2}else{if(!camera.isPerspectiveCamera)camera=new THREE.PerspectiveCamera(42,1,.01,100);camera.aspect=rect.width/rect.height}camera.position.set(Math.sin(theta)*Math.cos(phi)*dist,Math.sin(phi)*dist,Math.cos(theta)*Math.cos(phi)*dist);camera.lookAt(0,0,0);camera.updateProjectionMatrix();renderer.render(scene,camera)}
-function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?0xffffff:0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(shape==='extrude'?0x111111:(space==='white'?0x526b78:0xd3e8ef));if(o.userData&&o.userData.floor)o.material.color.setHex(space==='white'?0xf4f4f4:0x1a1a20);if(o.userData&&o.userData.floorShadow)o.material.opacity=space==='white'?.56:.45;if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function setShape(m){shape=['box','sculpt','fold','extrude','float'].includes(m)?m:'box';if(lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film)}function show(src,rects,film='film'){
+function sxSafe(i,bw){return Math.sin((i+1)*3.71)*bw*.08}function clear(){backScreen=null;backGlow=null;if(!group)return;while(group.children.length){const obj=group.children[0];group.remove(obj);obj.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m.map)m.map.dispose();m.dispose()})}})}}
+function draw(){if(!active||!renderer)return;const rect=document.getElementById('stage').getBoundingClientRect();if(!rect.width||!rect.height)return;renderer.setSize(rect.width,rect.height,false);if(shape==='extrude'){if(!camera.isOrthographicCamera)camera=new THREE.OrthographicCamera(-1,1,1,-1,.01,100);const a=rect.width/rect.height,span=dist;camera.left=-span*a/2;camera.right=span*a/2;camera.top=span/2;camera.bottom=-span/2}else{if(!camera.isPerspectiveCamera)camera=new THREE.PerspectiveCamera(42,1,.01,100);camera.aspect=rect.width/rect.height}camera.position.set(Math.sin(theta)*Math.cos(phi)*dist,Math.sin(phi)*dist,Math.cos(theta)*Math.cos(phi)*dist);camera.lookAt(0,0,0);camera.updateProjectionMatrix();if(backScreen){const shift=floatSettings.parallax*.3;backScreen.position.x=Math.sin(theta)*shift;backScreen.position.y=Math.sin(phi)*shift;backGlow.position.x=backScreen.position.x;backGlow.position.y=backScreen.position.y}renderer.render(scene,camera)}
+function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?0xffffff:0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(shape==='extrude'?0x111111:(space==='white'?0x526b78:0xd3e8ef));if(o.userData&&o.userData.floor)o.material.color.setHex(space==='white'?0xf4f4f4:0x1a1a20);if(o.userData&&o.userData.floorShadow)o.material.opacity=space==='white'?.56:.45;if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function setShape(m){shape=['box','sculpt','fold','extrude','float'].includes(m)?m:'box';if(lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original)}function show(src,rects,film='film',original=src){
  if(!init())return false;
- lastScene={src,rects,film};clear();renderer.setClearColor(space==='white'?0xffffff:0x101014,1);const T=THREE,w=src.width,h=src.height,unit=Math.max(w,h),aspect=w/h;
- // Only captured CUT-UP rectangles become 3D objects; no original-photo backdrop.
+ lastScene={src,rects,film,original};clear();renderer.setClearColor(space==='white'?0xffffff:0x101014,1);const T=THREE,w=src.width,h=src.height,unit=Math.max(w,h),aspect=w/h;
+ // The uncut photograph belongs only to FLOAT; other modes retain their geometry.
+ if(shape==='float'&&floatSettings.screen)addBackScreen(original);
  const candidates=[];
  for(const r of (rects||[])){
   if(candidates.length>=(shape==='extrude'?68:32))break;
@@ -37,7 +59,7 @@ function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){rendere
   const r=candidates[i],bw=Math.max(.012,r.w/unit*1.75),bh=Math.max(.012,r.h/unit*1.75),depth=shape==='extrude'?(i%9===0?1.15+(i%4)*.23:.14+((i*17%19)/19)*.86):.07+((i*17%11)/11)*.38;
   const x=(r.x+r.w/2-w/2)/unit*1.75,y=(h/2-r.y-r.h/2)/unit*1.75,z=shape==='extrude'?-depth/2:.04+(i%7)*.035;
   const obj=new T.Group();obj.position.set(x,y,z);group.add(obj);
-  const geo=new T.BoxGeometry(bw,bh,shape==='float'?.002:depth);if(shape==='float'){obj.position.z+=(i%9-4)*.095;obj.rotation.y=Math.sin((i+1)*2.17)*.32;obj.rotation.x=Math.cos((i+1)*1.83)*.16;obj.rotation.z=Math.sin((i+1)*3.13)*.08;}if(shape==='sculpt'||shape==='fold'){const p=geo.attributes.position;const a=Math.sin((i+1)*12.9898)*43758.5453,rand=n=>{const x=Math.sin((i+1)*79.31+n*113.7+a)*43758.5453;return x-Math.floor(x)};const sx=(rand(1)-.5)*bw*(shape==='fold'?1.1:.65),sy=(rand(2)-.5)*bh*(shape==='fold'?.9:.65),twist=(rand(3)-.5)*(shape==='fold'?1.1:.65);for(let k=0;k<p.count;k++){let xx=p.getX(k),yy=p.getY(k),zz=p.getZ(k);if(zz>0){xx+=sx+yy*twist;yy+=sy-xx*twist*.3}else{xx-=sx*.28;yy-=sy*.28}p.setXYZ(k,xx,yy,zz)}p.needsUpdate=true;geo.computeVertexNormals();obj.position.z+=((rand(4)-.5)*.36);obj.rotation.z=(rand(5)-.5)*.28;obj.rotation.y=(rand(6)-.5)*.34;}
+  const geo=new T.BoxGeometry(bw,bh,shape==='float'?.002:depth);if(shape==='float'){obj.position.z=((i%9)/8-.5)*.45*floatSettings.depth;obj.rotation.y=Math.sin((i+1)*2.17)*.32;obj.rotation.x=Math.cos((i+1)*1.83)*.16;obj.rotation.z=Math.sin((i+1)*3.13)*.08;}if(shape==='sculpt'||shape==='fold'){const p=geo.attributes.position;const a=Math.sin((i+1)*12.9898)*43758.5453,rand=n=>{const x=Math.sin((i+1)*79.31+n*113.7+a)*43758.5453;return x-Math.floor(x)};const sx=(rand(1)-.5)*bw*(shape==='fold'?1.1:.65),sy=(rand(2)-.5)*bh*(shape==='fold'?.9:.65),twist=(rand(3)-.5)*(shape==='fold'?1.1:.65);for(let k=0;k<p.count;k++){let xx=p.getX(k),yy=p.getY(k),zz=p.getZ(k);if(zz>0){xx+=sx+yy*twist;yy+=sy-xx*twist*.3}else{xx-=sx*.28;yy-=sy*.28}p.setXYZ(k,xx,yy,zz)}p.needsUpdate=true;geo.computeVertexNormals();obj.position.z+=((rand(4)-.5)*.36);obj.rotation.z=(rand(5)-.5)*.28;obj.rotation.y=(rand(6)-.5)*.34;}
   const glass=new T.Mesh(geo,new T.MeshPhongMaterial({color:space==='white'?0x83a9b7:0xc6e9f2,transparent:true,opacity:shape==='float'?(film==='clear'?.012:.025):shape==='extrude'?(film==='clear'?.14:.27):shape==='fold'?(film==='clear'?.06:.10):shape==='sculpt'?(film==='clear'?.10:.16):(film==='clear'?.045:.075),side:T.DoubleSide,depthWrite:false,shininess:95}));
   glass.userData.glassBody=true;obj.add(glass);
   const edges=new T.LineSegments(new T.EdgesGeometry(geo),new T.LineBasicMaterial({color:shape==='extrude'?0x111111:(space==='white'?0x526b78:0xd3e8ef),transparent:true,opacity:shape==='float'?.07:shape==='extrude'?.95:.78,depthTest:true}));edges.userData.glassEdges=true;obj.add(edges);
@@ -45,7 +67,7 @@ function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){rendere
    const patch=document.createElement('canvas');patch.width=Math.min(512,Math.max(16,Math.round(r.w)));patch.height=Math.min(512,Math.max(16,Math.round(r.h)));
    const ctx=patch.getContext('2d');ctx.drawImage(src,Math.max(0,r.x),Math.max(0,r.y),Math.max(1,Math.min(r.w,w-Math.max(0,r.x))),Math.max(1,Math.min(r.h,h-Math.max(0,r.y))),0,0,patch.width,patch.height);
    const plane=new T.Mesh(new T.PlaneGeometry(bw,bh),new T.MeshBasicMaterial({map:new T.CanvasTexture(patch),transparent:true,opacity:shape==='float'?.82:shape==='extrude'?1:shape==='fold'?.94:shape==='sculpt'?.80:.44,side:T.DoubleSide,depthWrite:false}));
-   plane.position.z=depth/2+.001;if(shape==='sculpt'){plane.position.x+=sxSafe(i,bw);plane.rotation.z=Math.sin(i*4.13)*.08}if(shape==='fold'){plane.position.x+=sxSafe(i,bw)*2;plane.rotation.y=Math.sin(i*2.19)*.24;plane.rotation.z=Math.sin(i*3.47)*.12}obj.add(plane);if(shape==='fold'){const tex=plane.material.map;const back=new T.Mesh(new T.PlaneGeometry(bw,bh),new T.MeshBasicMaterial({map:tex,transparent:true,opacity:.48,side:T.DoubleSide,depthWrite:false}));back.position.z=-depth/2-.002;back.rotation.y=Math.PI;obj.add(back);const sideTex=new T.CanvasTexture(patch);const sideMat=new T.MeshBasicMaterial({map:sideTex,transparent:true,opacity:.58,side:T.DoubleSide,depthWrite:false});const side=new T.Mesh(new T.PlaneGeometry(depth,bh),sideMat);side.rotation.y=Math.PI/2;side.position.x=bw/2;obj.add(side);const inner=new T.Mesh(new T.PlaneGeometry(bw*.88,bh*.86),new T.MeshBasicMaterial({map:new T.CanvasTexture(patch),transparent:true,opacity:.36,side:T.DoubleSide,depthWrite:false}));inner.position.z=0;inner.rotation.y=Math.sin(i*5.1)*.85;inner.rotation.x=Math.cos(i*2.7)*.3;obj.add(inner)}
+   plane.position.z=shape==='float'?.003:depth/2+.001;if(shape==='sculpt'){plane.position.x+=sxSafe(i,bw);plane.rotation.z=Math.sin(i*4.13)*.08}if(shape==='fold'){plane.position.x+=sxSafe(i,bw)*2;plane.rotation.y=Math.sin(i*2.19)*.24;plane.rotation.z=Math.sin(i*3.47)*.12}obj.add(plane);if(shape==='fold'){const tex=plane.material.map;const back=new T.Mesh(new T.PlaneGeometry(bw,bh),new T.MeshBasicMaterial({map:tex,transparent:true,opacity:.48,side:T.DoubleSide,depthWrite:false}));back.position.z=-depth/2-.002;back.rotation.y=Math.PI;obj.add(back);const sideTex=new T.CanvasTexture(patch);const sideMat=new T.MeshBasicMaterial({map:sideTex,transparent:true,opacity:.58,side:T.DoubleSide,depthWrite:false});const side=new T.Mesh(new T.PlaneGeometry(depth,bh),sideMat);side.rotation.y=Math.PI/2;side.position.x=bw/2;obj.add(side);const inner=new T.Mesh(new T.PlaneGeometry(bw*.88,bh*.86),new T.MeshBasicMaterial({map:new T.CanvasTexture(patch),transparent:true,opacity:.36,side:T.DoubleSide,depthWrite:false}));inner.position.z=0;inner.rotation.y=Math.sin(i*5.1)*.85;inner.rotation.x=Math.cos(i*2.7)*.3;obj.add(inner)}
   }
  }
  if(shape==='extrude')addFloorAndShadows(T,candidates,w,h,unit);
@@ -70,6 +92,6 @@ function addFloorAndShadows(T,rects,w,h,unit){
 function hide(){active=false;if(canvas)canvas.style.display='none'}
 function angle(v){theta=(v-.5)*Math.PI*1.8;draw()}
 function snapshot(){if(!active||!renderer)return null;draw();const c=document.createElement('canvas');c.width=canvas.width;c.height=canvas.height;c.getContext('2d').drawImage(canvas,0,0);return c}
-window.GlassOrbit={show,hide,angle,setSpace,setShape,snapshot,isActive:()=>active,redraw:draw};
+window.GlassOrbit={show,hide,angle,setSpace,setShape,setFloat,snapshot,isActive:()=>active,redraw:draw};
 window.addEventListener('resize',()=>{if(active)draw()});
 })();
