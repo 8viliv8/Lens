@@ -1,6 +1,6 @@
 (()=>{
 let renderer=null,scene=null,camera=null,group=null,canvas=null,theta=(.72-.5)*Math.PI*1.8,phi=.18,dist=2.8,active=false,last=null,pointers=new Map(),pinch=0,ready=false,space='dark',shape='extrude',lastScene=null;
-const floatSettings={screen:true,opacity:.22,blur:10,glow:.25,depth:1,parallax:.35,layers:12,filmOpacity:.82,colour:.55};
+const floatSettings={screen:true,opacity:.34,blur:8,glow:.16,depth:1.1,parallax:.78,layers:12,filmOpacity:.78,colour:.24};
 let backScreen=null,backGlow=null,floatStarted=false;
 function setFloat(key,value){
  if(!(key in floatSettings))return;
@@ -28,13 +28,13 @@ function addBackScreen(src){
  }
  ctx.putImageData(id,0,0);
  const texture=new T.CanvasTexture(cv);texture.colorSpace=T.SRGBColorSpace;
- const width=(src.width+pad*2/scale)/unit*1.95,height=(src.height+pad*2/scale)/unit*1.95;
+ const width=(src.width+pad*2/scale)/unit*2.32,height=(src.height+pad*2/scale)/unit*2.32;
  // Broad dark/light matte wall behind the projected rectangle establishes spatial scale.
- const wall=new T.Mesh(new T.PlaneGeometry(Math.max(5,width*2.8),Math.max(4,height*2.8)),
+ const wall=new T.Mesh(new T.PlaneGeometry(Math.max(12,width*7),Math.max(9,height*7)),
  new T.MeshBasicMaterial({color:space==='white'?0xe8e7e3:0x242324,side:T.DoubleSide,depthWrite:false}));
  wall.position.z=-1.08-floatSettings.depth*.5;wall.userData.projectionWall=true;group.add(wall);
  backScreen=new T.Mesh(new T.PlaneGeometry(width,height),new T.MeshBasicMaterial({
- map:texture,transparent:true,opacity:Math.max(.22,floatSettings.opacity),side:T.DoubleSide,depthWrite:false
+ map:texture,transparent:true,opacity:floatSettings.opacity,side:T.DoubleSide,depthWrite:false
  }));
  backScreen.position.z=wall.position.z+.012;backScreen.userData.projectionScreen=true;group.add(backScreen);
  const gc=document.createElement('canvas');gc.width=256;gc.height=256;const g=gc.getContext('2d');
@@ -48,9 +48,9 @@ function addBackScreen(src){
  backGlow.position.z=backScreen.position.z+.007;backGlow.userData.projectionGlow=true;group.add(backGlow);
  // Projection beam is faint from the front, visible across space from oblique angles.
  const beamLength=Math.max(1.35,floatSettings.depth*2.25);
- const beamGeo=new T.CylinderGeometry(Math.max(width,height)*.31,.055,beamLength,32,1,true);
+ const beamGeo=new T.CylinderGeometry(Math.max(width,height)*.27,.055,beamLength,32,1,true);
  const beam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:0xf2e8d5,transparent:true,
- opacity:space==='white'?.018:.037,side:T.DoubleSide,depthWrite:false,blending:T.AdditiveBlending}));
+ opacity:space==='white'?.007:.018,side:T.DoubleSide,depthWrite:false,blending:T.AdditiveBlending}));
  beam.rotation.x=Math.PI/2;beam.position.set(0,0,backScreen.position.z+beamLength*.5+.02);
  beam.userData.projectionBeam=true;group.add(beam);
 }
