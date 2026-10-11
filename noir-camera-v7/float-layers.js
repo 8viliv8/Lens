@@ -66,6 +66,17 @@ function build(group,original,cutImage,rects,film,settings){
   const sheet=new T.Group();sheet.position.set(px,py,z);
   sheet.rotation.set((rnd(i,9)-.5)*.30,(rnd(i,10)-.5)*.68,(rnd(i,11)-.5)*.25);
   sheet.userData.floatSheet=true;group.add(sheet);
+  // Soft contact cues on the floor, attenuated by height and distance.
+  if(settings.screen){
+   const floorY=-Math.max(.98,original.height/unit*1.13);
+   const floorGlow=new T.Mesh(new T.PlaneGeometry(Math.max(.12,tw*1.25),Math.max(.14,th*.62)),
+    new T.MeshBasicMaterial({map:haze,transparent:true,opacity:(.055+.095*nearness)*settings.filmOpacity,
+      side:T.DoubleSide,depthWrite:false}));
+   floorGlow.rotation.x=-Math.PI/2;
+   floorGlow.position.set(px,floorY+.018,z-.10);
+   floorGlow.userData.floatFloorReflection=true;group.add(floorGlow);
+  }
+
   const opacity=clamp(settings.filmOpacity*(.27+.73*nearness),.04,.98);
   if(film==='film'){
    const imgSource=sourceRect?cutImage:original;
