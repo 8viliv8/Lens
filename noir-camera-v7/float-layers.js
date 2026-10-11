@@ -28,6 +28,7 @@ function build(group,original,cutImage,rects,film,settings){
  const count=Math.round(clamp(settings.layers||12,6,24));
  const depth=clamp(settings.depth||1,.05,2);
  const haze=hazeTexture();
+ const second=settings.second,mode=second?settings.picBMode:'off',mix=clamp(settings.mix,.01,1);
  // Very thin atmospheric layers define distance without surrounding cuboids.
  for(let j=0;j<4;j++){
   const z=-.72*depth+j*.36*depth;
@@ -37,7 +38,7 @@ function build(group,original,cutImage,rects,film,settings){
   atmosphere.userData.floatAtmosphere=true;group.add(atmosphere);
  }
  // Restored v55-style vertical slices, independently selectable from scattered FLOAT.
- if(settings.layout==='slices'){
+ if(settings.layout==='slices'||mode==='interleave'){
   for(let i=0;i<count;i++){
    const t=(i+.5)/count,overlap=.32/count;
    const left=Math.max(0,i/count-overlap),right=Math.min(1,(i+1)/count+overlap);
@@ -46,15 +47,22 @@ function build(group,original,cutImage,rects,film,settings){
    sheet.position.set(((left+right)/2-.5)*W,Math.sin(i*1.9)*.012*depth,(.5-t)*.88*depth);
    sheet.rotation.y=Math.sin(i*2.3)*.025*depth;
    sheet.rotation.z=Math.sin(i*1.7)*.009*depth;
+   if(mode==='interleave')sheet.position.z+=(i%2===1?.24:-.16)*depth;
    sheet.userData.floatSheet=true;group.add(sheet);
    const sw=(right-left)*W;
    if(film==='film'){
     const photo=new T.Mesh(new T.PlaneGeometry(sw,H),new T.MeshBasicMaterial({
-     map:imageTexture(original,r),transparent:true,
+     map:imageTexture(mode==='interleave'&&i%2===1?second:original,r),transparent:true,
      opacity:clamp(settings.filmOpacity*(.64+.18*Math.sin(i*1.7)),.05,.98),
      side:T.DoubleSide,depthWrite:false
     }));
     photo.userData.floatPrint=true;sheet.add(photo);
+    if(mode==='fusion'&&second){
+     const over=new T.Mesh(new T.PlaneGeometry(sw,H),new T.MeshBasicMaterial({
+      map:imageTexture(second,r),transparent:true,opacity:mix*.72,side:T.DoubleSide,depthWrite:false
+     }));
+     over.position.z=.006;sheet.add(over);
+    }
    }
    const glass=new T.Mesh(new T.PlaneGeometry(sw,H),new T.MeshBasicMaterial({
     color:0xb3cbd9,transparent:true,opacity:.045*settings.colour,
@@ -107,11 +115,23 @@ function build(group,original,cutImage,rects,film,settings){
 
   const opacity=clamp(settings.filmOpacity*(.27+.73*nearness),.04,.98);
   if(film==='film'){
-   const imgSource=sourceRect?cutImage:original;
+   const imgSource=mode==='replace'&&second&&i%3===1?second:(sourceRect?cutImage:original);
    const tex=imageTexture(imgSource,r);
    const plane=new T.Mesh(new T.PlaneGeometry(tw,th),
     new T.MeshBasicMaterial({map:tex,transparent:true,opacity,side:T.DoubleSide,depthWrite:false}));
    plane.userData.floatPrint=true;sheet.add(plane);
+   if(second&&(mode==='fusion'||mode==='depth')){
+    const over=new T.Mesh(new T.PlaneGeometry(tw,th),new T.MeshBasicMaterial({
+      map:imageTexture(second,r),transparent:true,opacity:mode==='fusion'?mix*.75:clamp(mix*.94,.1,.95),
+      side:T.DoubleSide,depthWrite:false
+    }));
+    if(mode==='depth'){
+     const side=new T.Group();side.position.set(px+((rnd(i,14)-.5)*.18),py,z+(.35+.65*rnd(i,15))*depth);
+     side.rotation.set(sheet.rotation.x*.4,sheet.rotation.y*.65,sheet.rotation.z*.4);
+     over.material.opacity=clamp(mix*(.38+.55*rnd(i,16)),.08,.85);
+     side.add(over);side.userData.floatSheet=true;group.add(side);
+    }else{over.position.z=.009;sheet.add(over)}
+   }
   }
   const glass=new T.Mesh(new T.PlaneGeometry(tw*1.018,th*1.018),
     new T.MeshBasicMaterial({color:0xbccfdf,transparent:true,opacity:clamp(settings.colour,0,1)*(.012+.023*nearness),side:T.DoubleSide,depthWrite:false}));
