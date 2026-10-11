@@ -1,15 +1,16 @@
 (()=>{
 let renderer=null,scene=null,camera=null,group=null,canvas=null,theta=(.72-.5)*Math.PI*1.8,phi=.18,dist=2.8,active=false,last=null,pointers=new Map(),pinch=0,ready=false,space='dark',shape='extrude',lastScene=null;
-const floatSettings={screen:true,opacity:.34,blur:8,glow:.16,depth:1.1,parallax:.78,layers:12,filmOpacity:.78,colour:.24,layout:'scatter'};
+const floatSettings={screen:true,opacity:.34,blur:8,glow:.16,depth:1.1,parallax:.78,layers:12,filmOpacity:.78,colour:.24,layout:'scatter',picBMode:'off',second:null,mix:.35};
 let backScreen=null,backGlow=null,floatStarted=false;
 function setFloat(key,value){
  if(!(key in floatSettings))return;
  if(key==='screen')floatSettings.screen=!!value;
  else if(key==='layout')floatSettings.layout=value==='slices'?'slices':'scatter';
+ else if(key==='picBMode')floatSettings.picBMode=['off','fusion','interleave','depth','replace','reflection'].includes(value)?value:'off';
  else {const limits={opacity:.6,blur:24,glow:1,depth:2,parallax:1,layers:24,filmOpacity:1,colour:1};if(!Number.isFinite(Number(value)))return;floatSettings[key]=key==='layers'?Math.round(Math.max(6,Math.min(24,Number(value)))):Math.max(0,Math.min(limits[key],Number(value)))}
- if(shape==='float'&&lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original);
+ if(shape==='float'&&lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original,lastScene.second,lastScene.mix);
 }
-function addBackScreen(src){
+function addBackScreen(src,reflectionSource=src){
  const T=THREE,unit=Math.max(src.width,src.height),scale=Math.min(1,1100/unit),pad=50;
  const cv=document.createElement('canvas');
  cv.width=Math.round(src.width*scale)+pad*2;cv.height=Math.round(src.height*scale)+pad*2;
@@ -72,7 +73,7 @@ function addBackScreen(src){
  spill.userData.projectionSpill=true;group.add(spill);
  const reflectCanvas=document.createElement('canvas');reflectCanvas.width=512;reflectCanvas.height=256;
  const rc=reflectCanvas.getContext('2d');rc.filter='blur(19px) saturate(.6)';
- rc.globalAlpha=.48;rc.drawImage(src,0,0,512,256);rc.globalAlpha=1;rc.filter='none';
+ rc.globalAlpha=.48;rc.drawImage(reflectionSource,0,0,512,256);rc.globalAlpha=1;rc.filter='none';
  const fade=rc.createLinearGradient(0,0,0,256);fade.addColorStop(0,'rgba(255,255,255,.5)');
  fade.addColorStop(1,'rgba(255,255,255,0)');rc.globalCompositeOperation='destination-in';
  rc.fillStyle=fade;rc.fillRect(0,0,512,256);
@@ -105,11 +106,13 @@ function draw(){if(!active||!renderer)return;const rect=document.getElementById(
 }renderer.render(scene,camera)}
 function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?(shape==='float'?0xf0f1ef:0xffffff):0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(backGlow){backGlow.material.blending=THREE.NormalBlending;backGlow.material.needsUpdate=true}if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(shape==='extrude'?0x111111:(space==='white'?0x526b78:0xd3e8ef));if(o.userData&&o.userData.floor)o.material.color.setHex(space==='white'?0xf4f4f4:0x1a1a20);if(o.userData&&o.userData.floorShadow)o.material.opacity=space==='white'?.56:.45;if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function setShape(m){shape=['box','sculpt','fold','extrude','float'].includes(m)?m:'box';
  if(shape==='float'&&!floatStarted){floatStarted=true;space='white';theta=.30;phi=.08;dist=3.0}
-if(lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original)}function show(src,rects,film='film',original=src){
+if(lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original)}function show(src,rects,film='film',original=src,second=null,mix=.35){
  if(!init())return false;
- lastScene={src,rects,film,original};clear();renderer.setClearColor(space==='white'?(shape==='float'?0xf0f1ef:0xffffff):0x101014,1);const T=THREE,w=src.width,h=src.height,unit=Math.max(w,h),aspect=w/h;
+ lastScene={src,rects,film,original,second,mix};clear();renderer.setClearColor(space==='white'?(shape==='float'?0xf0f1ef:0xffffff):0x101014,1);const T=THREE,w=src.width,h=src.height,unit=Math.max(w,h),aspect=w/h;
  // The uncut photograph belongs only to FLOAT; other modes retain their geometry.
- if(shape==='float'&&floatSettings.screen)addBackScreen(original);
+ const bCanvas=second&&second.width&&second.height?(()=>{const c=document.createElement('canvas');c.width=original.width;c.height=original.height;const ctx=c.getContext('2d');const scale=Math.max(c.width/second.width,c.height/second.height);ctx.drawImage(second,(c.width-second.width*scale)/2,(c.height-second.height*scale)/2,second.width*scale,second.height*scale);return c})():null;
+ floatSettings.second=bCanvas;floatSettings.mix=Math.max(0,Math.min(1,Number(mix)||0));
+ if(shape==='float'&&floatSettings.screen)addBackScreen(original,floatSettings.picBMode==='reflection'&&bCanvas?bCanvas:original);
  if(shape==='float'&&window.FloatLayers){
   FloatLayers.build(group,original,src,rects,film,floatSettings);
   active=true;canvas.style.display='block';document.getElementById('c').style.display='none';draw();return true;
