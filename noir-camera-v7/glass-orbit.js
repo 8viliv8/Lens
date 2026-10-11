@@ -1,10 +1,11 @@
 (()=>{
 let renderer=null,scene=null,camera=null,group=null,canvas=null,theta=(.72-.5)*Math.PI*1.8,phi=.18,dist=2.8,active=false,last=null,pointers=new Map(),pinch=0,ready=false,space='dark',shape='extrude',lastScene=null;
-const floatSettings={screen:true,opacity:.34,blur:8,glow:.16,depth:1.1,parallax:.78,layers:12,filmOpacity:.78,colour:.24};
+const floatSettings={screen:true,opacity:.34,blur:8,glow:.16,depth:1.1,parallax:.78,layers:12,filmOpacity:.78,colour:.24,layout:'scatter'};
 let backScreen=null,backGlow=null,floatStarted=false;
 function setFloat(key,value){
  if(!(key in floatSettings))return;
  if(key==='screen')floatSettings.screen=!!value;
+ else if(key==='layout')floatSettings.layout=value==='slices'?'slices':'scatter';
  else {const limits={opacity:.6,blur:24,glow:1,depth:2,parallax:1,layers:24,filmOpacity:1,colour:1};if(!Number.isFinite(Number(value)))return;floatSettings[key]=key==='layers'?Math.round(Math.max(6,Math.min(24,Number(value)))):Math.max(0,Math.min(limits[key],Number(value)))}
  if(shape==='float'&&lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original);
 }
