@@ -36,6 +36,34 @@ function build(group,original,cutImage,rects,film,settings){
   atmosphere.position.set((j-1.5)*.085,(j%2-.5)*.075,z);
   atmosphere.userData.floatAtmosphere=true;group.add(atmosphere);
  }
+ // Restored v55-style vertical slices, independently selectable from scattered FLOAT.
+ if(settings.layout==='slices'){
+  for(let i=0;i<count;i++){
+   const t=(i+.5)/count,overlap=.32/count;
+   const left=Math.max(0,i/count-overlap),right=Math.min(1,(i+1)/count+overlap);
+   const r={x:left*original.width,y:0,w:(right-left)*original.width,h:original.height};
+   const sheet=new T.Group();
+   sheet.position.set(((left+right)/2-.5)*W,Math.sin(i*1.9)*.012*depth,(.5-t)*.88*depth);
+   sheet.rotation.y=Math.sin(i*2.3)*.025*depth;
+   sheet.rotation.z=Math.sin(i*1.7)*.009*depth;
+   sheet.userData.floatSheet=true;group.add(sheet);
+   const sw=(right-left)*W;
+   if(film==='film'){
+    const photo=new T.Mesh(new T.PlaneGeometry(sw,H),new T.MeshBasicMaterial({
+     map:imageTexture(original,r),transparent:true,
+     opacity:clamp(settings.filmOpacity*(.64+.18*Math.sin(i*1.7)),.05,.98),
+     side:T.DoubleSide,depthWrite:false
+    }));
+    photo.userData.floatPrint=true;sheet.add(photo);
+   }
+   const glass=new T.Mesh(new T.PlaneGeometry(sw,H),new T.MeshBasicMaterial({
+    color:0xb3cbd9,transparent:true,opacity:.045*settings.colour,
+    side:T.DoubleSide,depthWrite:false
+   }));
+   glass.position.z=.002;sheet.add(glass);
+  }
+  return group.children;
+ }
  // Fragment locations remain loosely related to the original photograph.
  // Their depth, rotation, size, and lateral drift differ deterministically.
  const candidates=(rects||[]).filter(r=>r&&r.w>3&&r.h>3&&r.x>=0&&r.y>=0);
