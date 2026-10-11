@@ -48,11 +48,39 @@ function addBackScreen(src){
  backGlow.position.z=backScreen.position.z+.007;backGlow.userData.projectionGlow=true;group.add(backGlow);
  // Projection beam is faint from the front, visible across space from oblique angles.
  const beamLength=Math.max(1.35,floatSettings.depth*2.25);
- const beamGeo=new T.CylinderGeometry(Math.max(width,height)*.27,.055,beamLength,32,1,true);
+ const beamGeo=new T.CylinderGeometry(.035,Math.max(width,height)*.31,beamLength,36,1,true);
  const beam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:0xf2e8d5,transparent:true,
  opacity:space==='white'?.007:.018,side:T.DoubleSide,depthWrite:false,blending:T.AdditiveBlending}));
  beam.rotation.x=Math.PI/2;beam.position.set(0,0,backScreen.position.z+beamLength*.5+.02);
  beam.userData.projectionBeam=true;group.add(beam);
+ // Matte floor: catches diffuse projection spill, never a mirror.
+ const floorY=-Math.max(.98,src.height/unit*1.13);
+ const floor=new T.Mesh(new T.PlaneGeometry(18,15),new T.MeshBasicMaterial({
+  color:space==='white'?0xe4e3df:0x181819,side:T.DoubleSide,depthWrite:false
+ }));
+ floor.rotation.x=-Math.PI/2;floor.position.set(0,floorY,backScreen.position.z+4.2);
+ floor.userData.projectionFloor=true;group.add(floor);
+ const spillCanvas=document.createElement('canvas');spillCanvas.width=256;spillCanvas.height=256;
+ const sc=spillCanvas.getContext('2d'),tone=sc.createRadialGradient(128,130,5,128,130,127);
+ tone.addColorStop(0,'rgba(237,218,193,.32)');tone.addColorStop(.46,'rgba(194,189,193,.14)');
+ tone.addColorStop(1,'rgba(178,185,194,0)');sc.fillStyle=tone;sc.fillRect(0,0,256,256);
+ const spill=new T.Mesh(new T.PlaneGeometry(width*1.9,2.8),
+ new T.MeshBasicMaterial({map:new T.CanvasTexture(spillCanvas),transparent:true,
+ opacity:Math.min(.43,floatSettings.opacity*.78),side:T.DoubleSide,depthWrite:false}));
+ spill.rotation.x=-Math.PI/2;spill.position.set(0,floorY+.008,backScreen.position.z+.94);
+ spill.userData.projectionSpill=true;group.add(spill);
+ const reflectCanvas=document.createElement('canvas');reflectCanvas.width=512;reflectCanvas.height=256;
+ const rc=reflectCanvas.getContext('2d');rc.filter='blur(19px) saturate(.6)';
+ rc.globalAlpha=.48;rc.drawImage(src,0,0,512,256);rc.globalAlpha=1;rc.filter='none';
+ const fade=rc.createLinearGradient(0,0,0,256);fade.addColorStop(0,'rgba(255,255,255,.5)');
+ fade.addColorStop(1,'rgba(255,255,255,0)');rc.globalCompositeOperation='destination-in';
+ rc.fillStyle=fade;rc.fillRect(0,0,512,256);
+ const reflection=new T.Mesh(new T.PlaneGeometry(width*1.02,1.48),
+ new T.MeshBasicMaterial({map:new T.CanvasTexture(reflectCanvas),transparent:true,
+ opacity:.18,side:T.DoubleSide,depthWrite:false}));
+ reflection.rotation.x=-Math.PI/2;reflection.position.set(0,floorY+.012,backScreen.position.z+.8);
+ reflection.userData.projectionReflection=true;group.add(reflection);
+
 }
 function init(){
  if(!window.THREE)return false;
