@@ -40,7 +40,7 @@ function build(group,original,cutImage,rects,film,settings){
  // Their depth, rotation, size, and lateral drift differ deterministically.
  const candidates=(rects||[]).filter(r=>r&&r.w>3&&r.h>3&&r.x>=0&&r.y>=0);
  for(let i=0;i<count;i++){
-  const sourceRect=candidates.length?candidates[(i*7)%candidates.length]:null;
+  const sourceRect=candidates.length&&i%3===0?candidates[(i*7)%candidates.length]:null;
   const cell=i%count,cols=Math.max(3,Math.ceil(Math.sqrt(count*1.35)));
   const gx=cell%cols,gy=Math.floor(cell/cols),rows=Math.ceil(count/cols);
   const baseX=(gx+.5+(rnd(i,1)-.5)*.68)/cols;
@@ -58,15 +58,15 @@ function build(group,original,cutImage,rects,film,settings){
   }
   if(r.w<3||r.h<3)continue;
   const tw=r.w/unit*1.75,th=r.h/unit*1.75;
-  const nearness=rnd(i,8);
+  const nearness=Math.pow(rnd(i,8),.72);
   const z=(-.42+nearness*1.55)*depth*(.55+clamp(settings.parallax,0,1)*1.35);
-  const drift=.08+.16*nearness;
+  const drift=.045+.18*nearness;
   const px=(r.x+r.w/2-original.width/2)/unit*1.75+(rnd(i,5)-.5)*drift*2;
   const py=(original.height/2-r.y-r.h/2)/unit*1.75+(rnd(i,6)-.5)*drift*1.5;
   const sheet=new T.Group();sheet.position.set(px,py,z);
   sheet.rotation.set((rnd(i,9)-.5)*.30,(rnd(i,10)-.5)*.68,(rnd(i,11)-.5)*.25);
   sheet.userData.floatSheet=true;group.add(sheet);
-  const opacity=clamp(settings.filmOpacity*(.32+.65*nearness),.04,.98);
+  const opacity=clamp(settings.filmOpacity*(.27+.73*nearness),.04,.98);
   if(film==='film'){
    const imgSource=sourceRect?cutImage:original;
    const tex=imageTexture(imgSource,r);
