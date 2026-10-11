@@ -9,17 +9,50 @@ function setFloat(key,value){
  if(shape==='float'&&lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original);
 }
 function addBackScreen(src){
- const T=THREE,unit=Math.max(src.width,src.height),cv=document.createElement('canvas');
- const scale=Math.min(1,1024/unit),pad=80;cv.width=Math.round(src.width*scale)+pad*2;cv.height=Math.round(src.height*scale)+pad*2;
- const ctx=cv.getContext('2d');ctx.filter='blur('+floatSettings.blur+'px)';ctx.drawImage(src,pad,pad,cv.width-pad*2,cv.height-pad*2);
- const texture=new T.CanvasTexture(cv);
- const width=(src.width+pad*2/scale)/unit*1.75,height=(src.height+pad*2/scale)/unit*1.75;
- backScreen=new T.Mesh(new T.PlaneGeometry(width,height),new T.MeshBasicMaterial({map:texture,transparent:true,opacity:floatSettings.opacity,side:T.DoubleSide,depthWrite:false}));
- backScreen.position.z=-.55-floatSettings.depth*.44;backScreen.renderOrder=-2;group.add(backScreen);
- const glowCanvas=document.createElement('canvas');glowCanvas.width=cv.width;glowCanvas.height=cv.height;
- const glowCtx=glowCanvas.getContext('2d');glowCtx.filter='blur(24px) brightness(1.5)';glowCtx.drawImage(cv,0,0);
- backGlow=new T.Mesh(new T.PlaneGeometry(width,height),new T.MeshBasicMaterial({map:new T.CanvasTexture(glowCanvas),transparent:true,opacity:floatSettings.opacity*floatSettings.glow,side:T.DoubleSide,depthWrite:false,blending:space==='white'?T.NormalBlending:T.AdditiveBlending}));
- backGlow.position.z=backScreen.position.z-.005;backGlow.renderOrder=-3;group.add(backGlow);
+ const T=THREE,unit=Math.max(src.width,src.height),scale=Math.min(1,1100/unit),pad=50;
+ const cv=document.createElement('canvas');
+ cv.width=Math.round(src.width*scale)+pad*2;cv.height=Math.round(src.height*scale)+pad*2;
+ const ctx=cv.getContext('2d'),w=cv.width,h=cv.height;
+ // A photograph illuminating a matte wall: soft vignette, irregular beam falloff and grain.
+ const rng=(x,y)=>{const v=Math.sin(x*127.1+y*311.7)*43758.5453;return v-Math.floor(v)};
+ ctx.fillStyle=space==='white'?'#d5d2ce':'#343332';ctx.fillRect(0,0,w,h);
+ ctx.save();ctx.filter='blur('+Math.max(1,floatSettings.blur*.40)+'px) contrast(.90) saturate(.88)';
+ ctx.drawImage(src,pad,pad,w-pad*2,h-pad*2);ctx.restore();
+ const veil=ctx.createRadialGradient(w*.47,h*.43,w*.05,w*.5,h*.5,w*.74);
+ veil.addColorStop(0,'rgba(255,250,239,0.12)');veil.addColorStop(.63,'rgba(47,42,40,0.02)');veil.addColorStop(1,'rgba(13,12,12,0.68)');
+ ctx.fillStyle=veil;ctx.fillRect(0,0,w,h);
+ const id=ctx.getImageData(0,0,w,h),d=id.data;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const i=(y*w+x)*4,n=(rng(Math.floor(x/2),Math.floor(y/2))-.5)*11;
+  d[i]=Math.max(0,Math.min(255,d[i]+n));d[i+1]=Math.max(0,Math.min(255,d[i+1]+n));d[i+2]=Math.max(0,Math.min(255,d[i+2]+n));
+ }
+ ctx.putImageData(id,0,0);
+ const texture=new T.CanvasTexture(cv);texture.colorSpace=T.SRGBColorSpace;
+ const width=(src.width+pad*2/scale)/unit*1.95,height=(src.height+pad*2/scale)/unit*1.95;
+ // Broad dark/light matte wall behind the projected rectangle establishes spatial scale.
+ const wall=new T.Mesh(new T.PlaneGeometry(Math.max(5,width*2.8),Math.max(4,height*2.8)),
+ new T.MeshBasicMaterial({color:space==='white'?0xe8e7e3:0x242324,side:T.DoubleSide,depthWrite:false}));
+ wall.position.z=-1.08-floatSettings.depth*.5;wall.userData.projectionWall=true;group.add(wall);
+ backScreen=new T.Mesh(new T.PlaneGeometry(width,height),new T.MeshBasicMaterial({
+ map:texture,transparent:true,opacity:Math.max(.22,floatSettings.opacity),side:T.DoubleSide,depthWrite:false
+ }));
+ backScreen.position.z=wall.position.z+.012;backScreen.userData.projectionScreen=true;group.add(backScreen);
+ const gc=document.createElement('canvas');gc.width=256;gc.height=256;const g=gc.getContext('2d');
+ const grad=g.createRadialGradient(128,128,8,128,128,126);
+ grad.addColorStop(0,'rgba(255,249,229,.34)');grad.addColorStop(.48,'rgba(230,225,211,.14)');grad.addColorStop(1,'rgba(225,221,211,0)');
+ g.fillStyle=grad;g.fillRect(0,0,256,256);
+ const glowTex=new T.CanvasTexture(gc);
+ backGlow=new T.Mesh(new T.PlaneGeometry(width*1.55,height*1.65),new T.MeshBasicMaterial({
+ map:glowTex,transparent:true,opacity:floatSettings.glow*.45,side:T.DoubleSide,depthWrite:false,blending:T.NormalBlending
+ }));
+ backGlow.position.z=backScreen.position.z+.007;backGlow.userData.projectionGlow=true;group.add(backGlow);
+ // Projection beam is faint from the front, visible across space from oblique angles.
+ const beamLength=Math.max(1.35,floatSettings.depth*2.25);
+ const beamGeo=new T.CylinderGeometry(Math.max(width,height)*.31,.055,beamLength,32,1,true);
+ const beam=new T.Mesh(beamGeo,new T.MeshBasicMaterial({color:0xf2e8d5,transparent:true,
+ opacity:space==='white'?.018:.037,side:T.DoubleSide,depthWrite:false,blending:T.AdditiveBlending}));
+ beam.rotation.x=Math.PI/2;beam.position.set(0,0,backScreen.position.z+beamLength*.5+.02);
+ beam.userData.projectionBeam=true;group.add(beam);
 }
 function init(){
  if(!window.THREE)return false;
@@ -41,7 +74,7 @@ function draw(){if(!active||!renderer)return;const rect=document.getElementById(
  // Transparent sheets sort by distance, including when orbiting behind them.
  for(const child of group.children){const p=new THREE.Vector3();child.getWorldPosition(p);const order=child===backScreen?-200000:child===backGlow?-200001:-Math.round(p.distanceToSquared(eye)*10000);child.traverse(o=>{if(o.isMesh||o.isLineSegments)o.renderOrder=order})}
 }renderer.render(scene,camera)}
-function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?(shape==='float'?0xf0f1ef:0xffffff):0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(backGlow){backGlow.material.blending=space==='white'?THREE.NormalBlending:THREE.AdditiveBlending;backGlow.material.needsUpdate=true}if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(shape==='extrude'?0x111111:(space==='white'?0x526b78:0xd3e8ef));if(o.userData&&o.userData.floor)o.material.color.setHex(space==='white'?0xf4f4f4:0x1a1a20);if(o.userData&&o.userData.floorShadow)o.material.opacity=space==='white'?.56:.45;if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function setShape(m){shape=['box','sculpt','fold','extrude','float'].includes(m)?m:'box';
+function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?(shape==='float'?0xf0f1ef:0xffffff):0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(backGlow){backGlow.material.blending=THREE.NormalBlending;backGlow.material.needsUpdate=true}if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(shape==='extrude'?0x111111:(space==='white'?0x526b78:0xd3e8ef));if(o.userData&&o.userData.floor)o.material.color.setHex(space==='white'?0xf4f4f4:0x1a1a20);if(o.userData&&o.userData.floorShadow)o.material.opacity=space==='white'?.56:.45;if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function setShape(m){shape=['box','sculpt','fold','extrude','float'].includes(m)?m:'box';
  if(shape==='float'&&!floatStarted){floatStarted=true;space='white';theta=.30;phi=.08;dist=3.0}
 if(lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original)}function show(src,rects,film='film',original=src){
  if(!init())return false;
