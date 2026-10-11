@@ -59,7 +59,7 @@ function build(group,original,cutImage,rects,film,settings){
   if(r.w<3||r.h<3)continue;
   const tw=r.w/unit*1.75,th=r.h/unit*1.75;
   const nearness=rnd(i,8);
-  const z=-.42*depth+nearness*1.55*depth;
+  const z=(-.42+nearness*1.55)*depth*(.55+clamp(settings.parallax,0,1)*1.35);
   const drift=.08+.16*nearness;
   const px=(r.x+r.w/2-original.width/2)/unit*1.75+(rnd(i,5)-.5)*drift*2;
   const py=(original.height/2-r.y-r.h/2)/unit*1.75+(rnd(i,6)-.5)*drift*1.5;
