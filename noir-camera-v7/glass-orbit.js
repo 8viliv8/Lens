@@ -2,6 +2,8 @@
 let renderer=null,scene=null,camera=null,group=null,canvas=null,theta=(.72-.5)*Math.PI*1.8,phi=.18,dist=2.8,active=false,last=null,pointers=new Map(),pinch=0,ready=false,space='dark',shape='extrude',lastScene=null;
 const floatSettings={screen:true,opacity:.34,blur:8,glow:.16,depth:1.1,parallax:.78,layers:12,filmOpacity:.78,colour:.24,layout:'scatter',picBMode:'off',second:null,mix:.35};
 let backScreen=null,backGlow=null,floatStarted=false;
+const dioramaSettings={rect:{x:.26,y:.27,w:.45,h:.48},depth:.85,tilt:0,shadow:.38};
+function setDiorama(key,value){if(!(key in dioramaSettings))return;dioramaSettings[key]=value;if(shape==='diorama'&&lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original,lastScene.second,lastScene.mix)}
 const shiawaseSettings={source:'invert',lines:190,cubes:26};
 function setShiawase(key,value){if(!(key in shiawaseSettings))return;if(key==='source')shiawaseSettings.source=['picb','invert','negative','mono','ghost'].includes(value)?value:'invert';else shiawaseSettings[key]=Math.round(Number(value))||shiawaseSettings[key];if(shape==='shiawase'&&lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original,lastScene.second,lastScene.mix)}
 function setFloat(key,value){
@@ -106,7 +108,7 @@ function draw(){if(!active||!renderer)return;const rect=document.getElementById(
  // Transparent sheets sort by distance, including when orbiting behind them.
  for(const child of group.children){const p=new THREE.Vector3();child.getWorldPosition(p);const order=child.userData.projectionWall?-400000:child===backScreen?-399990:child===backGlow?-399980:child.userData.projectionBeam?-399970:-Math.round(p.distanceToSquared(eye)*10000);child.traverse(o=>{if(o.isMesh||o.isLineSegments)o.renderOrder=order})}
 }renderer.render(scene,camera)}
-function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?(shape==='float'?0xf0f1ef:0xffffff):0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(backGlow){backGlow.material.blending=THREE.NormalBlending;backGlow.material.needsUpdate=true}if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(shape==='extrude'?0x111111:(space==='white'?0x526b78:0xd3e8ef));if(o.userData&&o.userData.floor)o.material.color.setHex(space==='white'?0xf4f4f4:0x1a1a20);if(o.userData&&o.userData.floorShadow)o.material.opacity=space==='white'?.56:.45;if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function setShape(m){shape=['box','sculpt','fold','extrude','float','shiawase'].includes(m)?m:'box';
+function setSpace(mode){space=mode==='white'?'white':'dark';if(renderer){renderer.setClearColor(space==='white'?(shape==='float'?0xf0f1ef:0xffffff):0x101014,1);if(canvas)canvas.style.background=space==='white'?'#fff':'#101014';if(backGlow){backGlow.material.blending=THREE.NormalBlending;backGlow.material.needsUpdate=true}if(group)group.traverse(o=>{if(o.userData&&o.userData.glassEdges)o.material.color.setHex(shape==='extrude'?0x111111:(space==='white'?0x526b78:0xd3e8ef));if(o.userData&&o.userData.floor)o.material.color.setHex(space==='white'?0xf4f4f4:0x1a1a20);if(o.userData&&o.userData.floorShadow)o.material.opacity=space==='white'?.56:.45;if(o.userData&&o.userData.glassBody)o.material.color.setHex(space==='white'?0x83a9b7:0xc6e9f2)});draw()}}function setShape(m){shape=['box','sculpt','fold','extrude','float','shiawase','diorama'].includes(m)?m:'box';
  if((shape==='float'||shape==='shiawase')&&!floatStarted){floatStarted=true;space='white';theta=.30;phi=.08;dist=3.0}
 if(lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene.original,lastScene.second,lastScene.mix)}function show(src,rects,film='film',original=src,second=null,mix=.35){
  if(!init())return false;
@@ -114,6 +116,7 @@ if(lastScene&&active)show(lastScene.src,lastScene.rects,lastScene.film,lastScene
  // The uncut photograph belongs only to FLOAT; other modes retain their geometry.
  const bCanvas=second&&second.width&&second.height?(()=>{const c=document.createElement('canvas');c.width=original.width;c.height=original.height;const ctx=c.getContext('2d');const scale=Math.max(c.width/second.width,c.height/second.height);ctx.drawImage(second,(c.width-second.width*scale)/2,(c.height-second.height*scale)/2,second.width*scale,second.height*scale);return c})():null;
  floatSettings.second=bCanvas;floatSettings.mix=Math.max(0,Math.min(1,Number(mix)||0));
+ if(shape==='diorama'&&window.DioramaMode){DioramaMode.build(group,original,dioramaSettings);active=true;canvas.style.display='block';document.getElementById('c').style.display='none';draw();return true}
  if(shape==='shiawase'&&window.ShiawaseMode){
   ShiawaseMode.build(group,original,bCanvas,shiawaseSettings);
   active=true;canvas.style.display='block';document.getElementById('c').style.display='none';draw();return true;
@@ -173,6 +176,6 @@ function addFloorAndShadows(T,rects,w,h,unit){
 function hide(){active=false;if(canvas)canvas.style.display='none'}
 function angle(v){theta=(v-.5)*Math.PI*1.8;draw()}
 function snapshot(){if(!active||!renderer)return null;draw();const c=document.createElement('canvas');c.width=canvas.width;c.height=canvas.height;c.getContext('2d').drawImage(canvas,0,0);return c}
-window.GlassOrbit={show,hide,angle,setSpace,setShape,setFloat,setShiawase,getShape:()=>shape,getSpace:()=>space,getView:()=>Math.max(0,Math.min(1,theta/(Math.PI*1.8)+.5)),snapshot,isActive:()=>active,redraw:draw};
+window.GlassOrbit={show,hide,angle,setSpace,setShape,setFloat,setShiawase,setDiorama,getShape:()=>shape,getSpace:()=>space,getView:()=>Math.max(0,Math.min(1,theta/(Math.PI*1.8)+.5)),snapshot,isActive:()=>active,redraw:draw};
 window.addEventListener('resize',()=>{if(active)draw()});
 })();
