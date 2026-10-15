@@ -1,0 +1,70 @@
+/* Desktop-only glass controls. Touch-first layouts retain the original UI. */
+@media (min-width: 1000px) and (hover: hover) and (pointer: fine) {
+  .app { display:block; position:relative; }
+  .app .stage { position:absolute; inset:0 420px 0 0; }
+  .app .controls {
+    position:absolute; right:20px; top:60px; bottom:20px;
+    width:380px; max-height:calc(100dvh - 80px); height:fit-content;
+    padding:18px; overflow-x:hidden; overflow-y:auto;
+    border:1px solid rgba(255,255,255,.22); border-radius:24px;
+    background:linear-gradient(145deg,rgba(110,118,134,.22),rgba(27,29,35,.76));
+    -webkit-backdrop-filter:blur(28px) saturate(135%);
+    backdrop-filter:blur(28px) saturate(135%);
+    box-shadow:inset 0 1px 0 #ffffff24,0 16px 48px #0007;
+    scrollbar-width:thin; scrollbar-color:#ffffff45 transparent;
+  }
+  .app .controls::before {
+    content:'NOIR / CONTROLS'; display:block; margin:0 0 16px;
+    color:#d4d9e2; font-size:10px; letter-spacing:.18em;
+  }
+  .controls :is(button,.unit) {
+    cursor:pointer; color:#e8ecf2;
+    background:linear-gradient(150deg,#ffffff12,#ffffff05);
+    border:1px solid #ffffff20; border-radius:12px;
+    box-shadow:inset 0 1px 0 #ffffff0d;
+    transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+  }
+  .controls :is(button,.unit):hover:not(:disabled) {
+    background:linear-gradient(150deg,#ffffff2b,#ffffff14);
+    border-color:#ffffff60; box-shadow:inset 0 1px 0 #ffffff30,0 4px 14px #0003;
+    transform:translateY(-1px);
+  }
+  .controls :is(button,.unit):focus-visible,.controls input:focus-visible {
+    outline:2px solid #b7dcff; outline-offset:3px;
+  }
+  .controls :is(button,.unit):active:not(:disabled) { transform:translateY(0); }
+  .controls :is(.chip.active,.btn.active,.unit.active,.selected,.cut-primary) {
+    color:#fff; border-color:#ffffff70;
+    background:linear-gradient(145deg,#ffffff38,#ffffff18);
+    box-shadow:inset 0 1px 0 #ffffff42,0 2px 10px #0002;
+  }
+  .controls .shutter { background:#eee; border:7px solid #ffffff20; border-radius:50%; }
+  .controls .subnav { padding:4px; border:1px solid #ffffff12; border-radius:17px; background:#0002; margin-bottom:16px; }
+  .controls .subnav .chip { min-height:36px; }
+  .controls .picmix { margin-bottom:14px; }
+  .controls .picbtn { flex-basis:52px; font-size:10px; }
+  .controls .dimension { flex-wrap:wrap; }
+  .controls .dimension .chip { flex:0 0 auto; min-height:34px; padding:7px 12px; font-size:10px; }
+  .controls #glassShape { flex-wrap:wrap; overflow:visible; }
+  .controls .creative { margin-top:14px; }
+  .controls .creative .btn { min-height:38px; height:38px; }
+  .edit-mode .controls [data-section="crop"] { flex-wrap:wrap; gap:5px; margin-top:12px; }
+  .edit-mode .controls [data-section="crop"] .btn { min-height:32px; height:32px; }
+  .controls .color-both { flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .controls .color-group { flex:1 0 100%; }
+  .controls .color-group .chip { flex:0 0 auto; min-width:80px; min-height:32px; }
+  .controls .color-group span { width:38px; }
+  .controls .float-note,.controls .float-sliders label,.controls .mixlabels { color:#bcc5d2; }
+  .controls .float-sliders { gap:10px 14px; }
+  .controls input[type="range"] { accent-color:#d3e6fa; cursor:pointer; }
+  .controls #dioramaSelect { border-radius:12px; }
+  .controls .gallery-grid { max-height:340px; }
+  .stage .version { right:16px; }
+}
+@media (min-width:1000px) and (hover:hover) and (pointer:fine) and (prefers-reduced-motion:reduce) {
+  .controls :is(button,.unit) { transition:none; }
+  .controls :is(button,.unit):hover:not(:disabled) { transform:none; }
+}
+@media (min-width:1000px) and (hover:hover) and (pointer:fine) and (prefers-reduced-transparency:reduce) {
+  .app .controls { background:#202329; backdrop-filter:none; -webkit-backdrop-filter:none; }
+}
