@@ -1,6 +1,6 @@
 (()=>{
-const state={rect:{x:.26,y:.27,w:.45,h:.48},depth:.85,tilt:0,thickness:.035,shadow:.38};
-function build(group,source,settings={}){
+const state={rect:{x:.26,y:.27,w:.45,h:.48},depth:.85,tilt:0,thickness:.035,shadow:.38,floorMode:'a',floorOpacity:1,floorDepth:2.6};
+function build(group,source,settings={},second=null){
  const T=THREE,s={...state,...settings},unit=Math.max(source.width,source.height),W=source.width/unit*1.8,H=source.height/unit*1.8;
  const bgTex=new T.CanvasTexture(source);bgTex.colorSpace=T.SRGBColorSpace;
  const bg=new T.Mesh(new T.PlaneGeometry(W,H),new T.MeshBasicMaterial({map:bgTex,side:T.DoubleSide}));
@@ -24,13 +24,15 @@ function build(group,source,settings={}){
  const mesh=new T.Mesh(new T.PlaneGeometry(bw,bh,10,10),new T.MeshBasicMaterial({map:texture,transparent:true,side:T.DoubleSide,depthWrite:false}));
  obj.add(mesh);mesh.userData.dioramaCutout=true;
  if(s.thickness>0){const back=new T.Mesh(new T.PlaneGeometry(bw,bh),new T.MeshBasicMaterial({map:texture,transparent:true,opacity:.26,side:T.DoubleSide,depthWrite:false}));back.position.z=-s.thickness;obj.add(back)}
- const floorY=-H*.59;
- const floor=new T.Mesh(new T.PlaneGeometry(8,6),new T.MeshBasicMaterial({color:0x1a1b1c,side:T.DoubleSide}));
- floor.rotation.x=-Math.PI/2;floor.position.set(0,floorY,.6);group.add(floor);
+ const floorY=-H*.5;
+ const floorSource=s.floorMode==='b'&&second?second:source;
+ const floorTexture=new T.CanvasTexture(floorSource);floorTexture.colorSpace=T.SRGBColorSpace;
+ const floor=new T.Mesh(new T.PlaneGeometry(W,Math.max(.4,s.floorDepth)),new T.MeshBasicMaterial({map:floorTexture,transparent:true,opacity:s.floorMode==='off'?0:s.floorOpacity,side:T.DoubleSide,depthWrite:true}));
+ floor.rotation.x=-Math.PI/2;floor.position.set(0,floorY,-.62+Math.max(.4,s.floorDepth)/2);floor.userData.dioramaPhotoFloor=true;group.add(floor);
  const sc=document.createElement('canvas');sc.width=sc.height=128;const q=sc.getContext('2d');
  const gr=q.createRadialGradient(64,64,3,64,64,64);gr.addColorStop(0,'rgba(0,0,0,.65)');gr.addColorStop(1,'rgba(0,0,0,0)');q.fillStyle=gr;q.fillRect(0,0,128,128);
  const shadow=new T.Mesh(new T.PlaneGeometry(Math.max(.3,bw*1.45),Math.max(.45,s.depth*1.7)),new T.MeshBasicMaterial({map:new T.CanvasTexture(sc),transparent:true,opacity:s.shadow,depthWrite:false,side:T.DoubleSide}));
- shadow.rotation.x=-Math.PI/2;shadow.position.set(obj.position.x,floorY+.009,obj.position.z-.1);group.add(shadow);
+ shadow.rotation.x=-Math.PI/2;shadow.position.set(obj.position.x,floorY+.012,obj.position.z-.1);group.add(shadow);
  return group.children;
 }
 window.DioramaMode={build,state};
