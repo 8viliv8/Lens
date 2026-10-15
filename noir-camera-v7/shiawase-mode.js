@@ -23,23 +23,30 @@ function build(group,source,second,opts={}){
  const unit=Math.max(source.width,source.height),ratio=source.width/unit;
  const W=ratio*1.44,H=source.height/unit*1.44,gap=2.05;
  const left=-gap/2-W/2,right=gap/2+W/2;
- const pair=[{im:source,x:left,rotation:.13},{im:other,x:right,rotation:-.13}];
+ const pair=[{im:source,x:left,rotation:0},{im:other,x:right,rotation:0}];
  for(const p of pair){
   const plane=new T.Mesh(new T.PlaneGeometry(W,H),new T.MeshBasicMaterial({map:tex(p.im),side:T.DoubleSide,transparent:true,opacity:.93,depthWrite:false}));
   plane.position.set(p.x,.1,-.23);plane.rotation.y=p.rotation;plane.userData.shiawaseScreen=true;group.add(plane);
   const glow=new T.Mesh(new T.PlaneGeometry(W*1.055,H*1.055),new T.MeshBasicMaterial({color:0xbac6d7,transparent:true,opacity:.048,side:T.DoubleSide,depthWrite:false}));
   glow.position.set(p.x,.1,-.245);group.add(glow);
  }
- // Sample corresponding normalized image positions on the paired planes.
+ // Crossed correspondences meet around a narrow, floating central junction.
+ // Endpoints preserve image coordinates; complementary endpoints swap vertical order.
  const positions=[];
+ const addLine=(a,b)=>positions.push(...a,...b);
  for(let i=0;i<lines;i++){
   const u=rnd(i+7,3),v=rnd(i+11,9),y=(.5-v)*H+.1;
-  const xOffset=(u-.5)*W;
-  positions.push(left+xOffset,y,-.225,right+xOffset,y,-.225);
+  const px=(u-.5)*W;
+  const a=[left+px,y,-.217],b=[right+px,y,-.217];
+  const hub=[(rnd(i,29)-.5)*.17,.1-(v-.5)*H*.34+(rnd(i,30)-.5)*.08,(rnd(i,31)-.5)*.37];
+  // Two diagonal paths cross at the same hub instead of running straight across.
+  addLine(a,hub);addLine([right+px,.2-y,-.217],hub);
  }
- const wire=new T.LineSegments(new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(positions,3)),
- new T.LineBasicMaterial({color:0xb8c9da,transparent:true,opacity:.12,depthWrite:false}));
+ const wireMaterial=new T.LineBasicMaterial({color:0xb8c9da,transparent:true,opacity:.17,depthWrite:false});
+ const wire=new T.LineSegments(new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(positions,3)),wireMaterial);
  wire.userData.shiawaseLines=true;group.add(wire);
+ const cubeConnections=[];
+ const connect=(a,b)=>cubeConnections.push(...a,...b);
  for(let i=0;i<count;i++){
   const u=.08+rnd(i,2)*.84,v=.08+rnd(i,5)*.84;
   const fraction=.09+rnd(i,7)*.18;
@@ -53,7 +60,22 @@ function build(group,source,second,opts={}){
   cube.position.set((rnd(i,14)-.5)*gap*1.05,(rnd(i,15)-.5)*H+.1,(rnd(i,16)-.5)*1.1);
   cube.rotation.set(rnd(i,17)*.9,rnd(i,18)*1.5,rnd(i,19)*.8);
   cube.userData.shiawaseCube=true;group.add(cube);
+  // Every floating cube is anchored to corresponding points on both images.
+  const cy=cube.position.y,cx=cube.position.x,cz=cube.position.z;
+  const p=(u-.5)*W;
+  const leftPoint=[left+p,cy,-.216],rightPoint=[right+p,cy,-.216];
+  const centerPoint=[cx,cy,cz];
+  connect(leftPoint,centerPoint);connect(centerPoint,rightPoint);
+  // A faint secondary strand makes each cube a three-dimensional junction.
+  if(i%3===0){
+   connect([left+(rnd(i,24)-.5)*W,cy+.08,-.216],centerPoint);
+   connect(centerPoint,[right+(rnd(i,25)-.5)*W,cy-.08,-.216]);
+  }
+
  }
+ const cubeWire=new T.LineSegments(new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(cubeConnections,3)),
+ new T.LineBasicMaterial({color:0xc7d5df,transparent:true,opacity:.23,depthWrite:false}));
+ cubeWire.userData.shiawaseCubeConnections=true;group.add(cubeWire);
  const floorY=-H*.69;
  const floor=new T.Mesh(new T.PlaneGeometry(8,5),new T.MeshBasicMaterial({color:0x191b20,side:T.DoubleSide,depthWrite:false}));
  floor.rotation.x=-Math.PI/2;floor.position.set(0,floorY,.3);floor.userData.shiawaseFloor=true;group.add(floor);
