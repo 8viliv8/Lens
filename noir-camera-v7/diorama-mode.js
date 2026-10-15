@@ -1,5 +1,5 @@
 (()=>{
-const state={rect:{x:.26,y:.27,w:.45,h:.48},depth:.72,tilt:0,thickness:.02,shadow:.28,floorMode:'a',floorOpacity:1,floorDepth:2.25,floorCrop:1,stageHeight:.07,stageEdge:.018,stageColor:'#05070a',stageShadow:.55};
+const state={rect:{x:.26,y:.27,w:.45,h:.48},depth:.72,tilt:0,thickness:.02,shadow:.28,floorMode:'a',floorOpacity:1,floorDepth:2.25,floorCrop:1,screenScale:1,stageHeight:.07,stageEdge:.018,stageColor:'#05070a',stageShadow:.55,room:false,cubeField:false,cubes:12,lineFloor:false,lineOpacity:.62,motion:false,water:.12};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,Number(v)||0));
 function texture(canvas){const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;return t}
 function displayCanvas(source,max=1280){
@@ -17,6 +17,15 @@ function floorCanvas(source,crop){
  q.save();q.translate(0,c.height);q.scale(1,-1);q.filter='contrast(1.1) saturate(1.15) brightness(1.06)';q.drawImage(source,0,source.height-band,source.width,band,0,0,c.width,c.height);q.restore();
  const depth=q.createLinearGradient(0,0,0,c.height);depth.addColorStop(0,'rgba(1,3,7,0)');depth.addColorStop(1,'rgba(1,3,7,.08)');q.fillStyle=depth;q.fillRect(0,0,c.width,c.height);return c;
 }
+function fragmentCanvas(source,i,size=256){
+ const c=document.createElement('canvas');c.width=c.height=size;const q=c.getContext('2d'),r=n=>{const x=Math.sin((i+1)*91.73+n*37.19)*43758.5453;return x-Math.floor(x)},side=Math.max(8,Math.min(source.width,source.height)*(.13+r(1)*.23)),x=r(2)*Math.max(1,source.width-side),y=r(3)*Math.max(1,source.height-side);
+ q.filter='contrast(1.12) saturate(1.18) brightness(1.07)';q.drawImage(source,x,y,side,side,0,0,size,size);return c;
+}
+function lineCanvas(source,size=640){
+ const scale=Math.min(1,size/Math.max(source.width,source.height)),w=Math.max(2,Math.round(source.width*scale)),h=Math.max(2,Math.round(source.height*scale)),base=document.createElement('canvas');base.width=w;base.height=h;const b=base.getContext('2d');b.drawImage(source,0,0,w,h);
+ const src=b.getImageData(0,0,w,h),out=b.createImageData(w,h),s=src.data,d=out.data,lum=i=>s[i]*.299+s[i+1]*.587+s[i+2]*.114;
+ for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=(y*w+x)*4,gx=-lum(i-w*4-4)-2*lum(i-4)-lum(i+w*4-4)+lum(i-w*4+4)+2*lum(i+4)+lum(i+w*4+4),gy=-lum(i-w*4-4)-2*lum(i-w*4)-lum(i-w*4+4)+lum(i+w*4-4)+2*lum(i+w*4)+lum(i+w*4+4),v=Math.max(0,Math.min(255,(Math.hypot(gx,gy)-24)*2.4));d[i]=174;d[i+1]=232;d[i+2]=255;d[i+3]=v}b.putImageData(out,0,0);return base;
+}
 function softPatch(source,r){
  const px=Math.max(0,Math.floor(r.x*source.width)),py=Math.max(0,Math.floor(r.y*source.height)),pw=Math.max(2,Math.min(source.width-px,Math.floor(r.w*source.width))),ph=Math.max(2,Math.min(source.height-py,Math.floor(r.h*source.height)));
  const c=document.createElement('canvas');c.width=Math.min(1024,pw);c.height=Math.min(1024,ph);const q=c.getContext('2d');q.drawImage(source,px,py,pw,ph,0,0,c.width,c.height);
@@ -24,14 +33,23 @@ function softPatch(source,r){
  for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++){const i=(y*c.width+x)*4+3,t=clamp(Math.min(x,y,c.width-1-x,c.height-1-y)/edge,0,1);d[i]=Math.round(d[i]*t*t*(3-2*t))}q.putImageData(im,0,0);return c;
 }
 function build(group,source,settings={},second=null){
- const T=THREE,s={...state,...settings},unit=Math.max(source.width,source.height),W=source.width/unit*1.82,H=source.height/unit*1.82;
- const floorY=-H*.5,stageDepth=Math.max(.4,Number(s.floorDepth)||state.floorDepth),stageWidth=W*1.48+clamp(s.stageEdge,0,.2)*2,stageHeight=clamp(s.stageHeight,0,.8),wallZ=-.62;
- const wallGlow=new T.Mesh(new T.PlaneGeometry(W*1.09,H*1.09),new T.MeshBasicMaterial({map:texture(glowCanvas(source)),transparent:true,opacity:.42,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide,toneMapped:false}));
- wallGlow.position.set(0,0,wallZ-.018);wallGlow.userData.dioramaWallGlow=true;group.add(wallGlow);
- const wall=new T.Mesh(new T.PlaneGeometry(W,H),new T.MeshBasicMaterial({map:texture(displayCanvas(source)),side:T.DoubleSide,toneMapped:false}));wall.position.z=wallZ;wall.userData.dioramaBackground=true;group.add(wall);
+ const T=THREE,s={...state,...settings},unit=Math.max(source.width,source.height),W=source.width/unit*1.82,H=source.height/unit*1.82,screenScale=clamp(s.screenScale,.45,2.2),wallW=W*screenScale,wallH=H*screenScale;
+ const floorY=-H*.5,stageDepth=Math.max(.4,Number(s.floorDepth)||state.floorDepth),stageWidth=W*1.48+clamp(s.stageEdge,0,.2)*2,stageHeight=clamp(s.stageHeight,0,.8),wallZ=-.62,wallY=floorY+wallH/2;
+ const wallGlow=new T.Mesh(new T.PlaneGeometry(wallW*1.09,wallH*1.09),new T.MeshBasicMaterial({map:texture(glowCanvas(source)),transparent:true,opacity:.42,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide,toneMapped:false}));
+ wallGlow.position.set(0,wallY,wallZ-.018);wallGlow.userData.dioramaWallGlow=true;group.add(wallGlow);
+ const wallTexture=texture(displayCanvas(source)),wallMaterial=()=>new T.MeshBasicMaterial({map:wallTexture,side:T.DoubleSide,toneMapped:false});
+ const wall=new T.Mesh(new T.PlaneGeometry(wallW,wallH),wallMaterial());wall.position.set(0,wallY,wallZ);wall.userData.dioramaBackground=true;group.add(wall);
  const floorSource=s.floorMode==='b'&&second?second:source,floorImage=floorCanvas(floorSource,s.floorCrop);
- const floor=new T.Mesh(new T.PlaneGeometry(stageWidth,stageDepth),new T.MeshBasicMaterial({map:texture(floorImage),transparent:true,opacity:s.floorMode==='off'?0:clamp(s.floorOpacity,.1,1),side:T.DoubleSide,toneMapped:false}));
+ if(s.room){
+  const left=new T.Mesh(new T.PlaneGeometry(stageDepth,wallH),wallMaterial());left.rotation.y=Math.PI/2;left.position.set(-stageWidth/2,wallY,wallZ+stageDepth/2);left.userData.dioramaSideWall='left';group.add(left);
+  const right=new T.Mesh(new T.PlaneGeometry(stageDepth,wallH),wallMaterial());right.rotation.y=-Math.PI/2;right.position.set(stageWidth/2,wallY,wallZ+stageDepth/2);right.userData.dioramaSideWall='right';group.add(right);
+ }
+ const floorGeometry=new T.PlaneGeometry(stageWidth,stageDepth,s.motion?36:1,s.motion?36:1),floor=new T.Mesh(floorGeometry,new T.MeshBasicMaterial({map:texture(floorImage),transparent:true,opacity:s.floorMode==='off'?0:clamp(s.floorOpacity,.1,1),side:T.DoubleSide,toneMapped:false}));
  floor.rotation.x=-Math.PI/2;floor.position.set(0,floorY,wallZ+stageDepth/2);floor.userData.dioramaPhotoFloor=true;group.add(floor);
+ if(s.lineFloor&&s.floorMode!=='off'){
+  const lines=new T.Mesh(new T.PlaneGeometry(stageWidth,stageDepth),new T.MeshBasicMaterial({map:texture(lineCanvas(floorImage)),transparent:true,opacity:clamp(s.lineOpacity,0,1),depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide,toneMapped:false}));
+  lines.rotation.x=-Math.PI/2;lines.position.set(0,floorY+.012,wallZ+stageDepth/2);lines.userData.dioramaLineFloor=true;group.add(lines);
+ }
  if(s.floorMode!=='off'){
   const color=new T.Color(/^#[0-9a-f]{6}$/i.test(s.stageColor)?s.stageColor:state.stageColor),h=Math.max(.004,stageHeight),edge=clamp(s.stageEdge,0,.2);
   const floorGlow=new T.Mesh(new T.PlaneGeometry(stageWidth*1.055,stageDepth*1.045),new T.MeshBasicMaterial({map:texture(glowCanvas(floorImage,640)),transparent:true,opacity:.28*clamp(s.floorOpacity,.1,1),depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide,toneMapped:false}));
@@ -46,7 +64,12 @@ function build(group,source,settings={},second=null){
   const contact=new T.Mesh(new T.PlaneGeometry(stageWidth*1.34,stageDepth*1.3),new T.MeshBasicMaterial({map:texture(sc),transparent:true,opacity:clamp(s.stageShadow,0,1),depthWrite:false,side:T.DoubleSide}));
   contact.rotation.x=-Math.PI/2;contact.position.set(0,floorY-h-.032,wallZ+stageDepth*.5);contact.userData.dioramaStageShadow=true;group.add(contact);
  }
- const r=s.rect||state.rect,patch=softPatch(source,r),bw=W*r.w,bh=H*r.h,obj=new T.Group();obj.position.set((r.x+r.w/2-.5)*W,floorY+bh/2,wallZ+clamp(s.depth,0,1.8));obj.rotation.y=clamp(s.tilt,-.9,.9);group.add(obj);
+ if(s.cubeField){
+  const count=Math.max(3,Math.min(30,Math.round(Number(s.cubes)||state.cubes))),rnd=(i,n)=>{const x=Math.sin((i+1)*73.31+n*119.17)*43758.5453;return x-Math.floor(x)};
+  for(let i=0;i<count;i++){const sz=.075+rnd(i,1)*.17,tex=texture(fragmentCanvas(source,i)),mat=new T.MeshBasicMaterial({map:tex,transparent:true,opacity:.94,side:T.DoubleSide,toneMapped:false}),cube=new T.Mesh(new T.BoxGeometry(sz,sz*(.72+rnd(i,2)*.7),sz*(.72+rnd(i,3)*.7)),mat),x=(rnd(i,4)-.5)*stageWidth*.76,y=floorY+.18+rnd(i,5)*wallH*.78,z=wallZ+.18+rnd(i,6)*stageDepth*.78;
+   cube.position.set(x,y,z);cube.rotation.set(rnd(i,7)*1.4,rnd(i,8)*1.7,rnd(i,9)*1.2);cube.userData.dioramaCube={baseY:y,phase:rnd(i,10)*Math.PI*2,speed:.45+rnd(i,11)*.75};group.add(cube)}
+ }
+ const r=s.rect||state.rect,patch=softPatch(source,r),bw=wallW*r.w,bh=wallH*r.h,obj=new T.Group();obj.position.set((r.x+r.w/2-.5)*wallW,floorY+bh/2,wallZ+clamp(s.depth,0,1.8));obj.rotation.y=clamp(s.tilt,-.9,.9);group.add(obj);
  const patchTex=texture(patch),mesh=new T.Mesh(new T.PlaneGeometry(bw,bh),new T.MeshBasicMaterial({map:patchTex,transparent:true,side:T.DoubleSide,depthWrite:false,toneMapped:false}));obj.add(mesh);mesh.userData.dioramaCutout=true;
  if(s.thickness>0){const back=new T.Mesh(new T.PlaneGeometry(bw,bh),new T.MeshBasicMaterial({map:patchTex,transparent:true,opacity:.16,side:T.DoubleSide,depthWrite:false}));back.position.z=-s.thickness;obj.add(back)}
  const reflectTex=texture(patch);reflectTex.wrapT=T.ClampToEdgeWrapping;reflectTex.repeat.y=-1;reflectTex.offset.y=1;
@@ -56,5 +79,8 @@ function build(group,source,settings={},second=null){
  const shadow=new T.Mesh(new T.PlaneGeometry(Math.max(.24,bw*1.25),Math.max(.42,bh*.75)),new T.MeshBasicMaterial({map:texture(shadowCanvas),transparent:true,opacity:clamp(s.shadow,0,1),depthWrite:false,side:T.DoubleSide}));
  shadow.rotation.x=-Math.PI/2;shadow.position.set(obj.position.x,floorY+.009,obj.position.z+.08);shadow.userData.dioramaFigureShadow=true;group.add(shadow);return group.children;
 }
-window.DioramaMode={build,state};
+function animate(group,time,settings={}){
+ const t=time*.001,amp=clamp(settings.water,0,.35);group.children.forEach(o=>{if(o.userData&&o.userData.dioramaCube){const d=o.userData.dioramaCube;o.position.y=d.baseY+Math.sin(t*d.speed+d.phase)*.055;o.rotation.x+=.0018*d.speed;o.rotation.y+=.0025*d.speed}if(o.userData&&o.userData.dioramaPhotoFloor&&o.geometry&&o.geometry.attributes.position&&amp){const p=o.geometry.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i);p.setZ(i,Math.sin(x*7+t*1.7+y*2.2)*amp*.026+Math.sin(y*5-t*1.25)*amp*.018)}p.needsUpdate=true}});
+}
+window.DioramaMode={build,animate,state};
 })();
