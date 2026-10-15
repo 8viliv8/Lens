@@ -1,5 +1,5 @@
 (()=>{
-const state={rect:{x:.26,y:.27,w:.45,h:.48},depth:.85,tilt:0,thickness:.035,shadow:.38,floorMode:'a',floorOpacity:1,floorDepth:2.6};
+const state={rect:{x:.26,y:.27,w:.45,h:.48},depth:.85,tilt:0,thickness:.035,shadow:.38,floorMode:'a',floorOpacity:1,floorDepth:2.6,stageHeight:.18,stageEdge:.035,stageColor:'#55545a',stageShadow:.45};
 function build(group,source,settings={},second=null){
  const T=THREE,s={...state,...settings},unit=Math.max(source.width,source.height),W=source.width/unit*1.8,H=source.height/unit*1.8;
  const bgTex=new T.CanvasTexture(source);bgTex.colorSpace=T.SRGBColorSpace;
@@ -25,6 +25,26 @@ function build(group,source,settings={},second=null){
  obj.add(mesh);mesh.userData.dioramaCutout=true;
  if(s.thickness>0){const back=new T.Mesh(new T.PlaneGeometry(bw,bh),new T.MeshBasicMaterial({map:texture,transparent:true,opacity:.26,side:T.DoubleSide,depthWrite:false}));back.position.z=-s.thickness;obj.add(back)}
  const floorY=-H*.5;
+ // The photo stays at wall-bottom height; the solid stage extends downwards.
+ const stageHeight=Math.max(0,Math.min(.8,Number(s.stageHeight)||0));
+ const stageEdge=Math.max(0,Math.min(.2,Number(s.stageEdge)||0));
+ const stageDepth=Math.max(.4,s.floorDepth),stageWidth=W+stageEdge*2;
+ const stageColor=new T.Color(/^#[0-9a-f]{6}$/i.test(s.stageColor)?s.stageColor:'#55545a');
+ if(s.floorMode!=='off'){
+  const body=new T.Mesh(new T.BoxGeometry(stageWidth,Math.max(.001,stageHeight),stageDepth+stageEdge),
+   [ .78,.55,1,.42,.88,.58 ].map(light=>new T.MeshBasicMaterial({color:stageColor.clone().multiplyScalar(light)})));
+  body.position.set(0,floorY-Math.max(.001,stageHeight)/2-.002,-.62+(stageDepth+stageEdge)/2);
+  body.userData.dioramaStage=true;group.add(body);
+  const shade=document.createElement('canvas');shade.width=shade.height=256;
+  const sq=shade.getContext('2d');
+  // A blurred rectangular contact shadow follows the whole footprint.
+  sq.filter='blur(16px)';sq.fillStyle='#000';sq.fillRect(38,38,180,180);
+  const contact=new T.Mesh(new T.PlaneGeometry(stageWidth*1.42,(stageDepth+stageEdge)*1.42),
+   new T.MeshBasicMaterial({map:new T.CanvasTexture(shade),transparent:true,opacity:Math.max(0,Math.min(1,Number(s.stageShadow)||0)),depthWrite:false,side:T.DoubleSide}));
+  contact.rotation.x=-Math.PI/2;
+  contact.position.set(0,floorY-stageHeight-.014,-.62+(stageDepth+stageEdge)/2);
+  contact.userData.dioramaStageShadow=true;group.add(contact);
+ }
  const floorSource=s.floorMode==='b'&&second?second:source;
  const floorTexture=new T.CanvasTexture(floorSource);floorTexture.colorSpace=T.SRGBColorSpace;
  const floor=new T.Mesh(new T.PlaneGeometry(W,Math.max(.4,s.floorDepth)),new T.MeshBasicMaterial({map:floorTexture,transparent:true,opacity:s.floorMode==='off'?0:s.floorOpacity,side:T.DoubleSide,depthWrite:true}));
