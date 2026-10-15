@@ -1,5 +1,5 @@
 (()=>{
-const state={rect:{x:.26,y:.27,w:.45,h:.48},depth:.72,tilt:0,thickness:.02,shadow:.28,floorMode:'a',floorOpacity:1,floorDepth:2.25,floorCrop:1,screenScale:1,stageHeight:.07,stageEdge:.018,stageColor:'#05070a',stageShadow:.55,room:false,cubeField:false,cubes:12,lineField:false,lineOpacity:.62,motion:false,water:.12,traceMotion:false,neuralMotion:false};
+const state={rect:{x:.26,y:.27,w:.45,h:.48},depth:.72,tilt:0,thickness:.02,shadow:.28,floorMode:'a',floorOpacity:1,floorDepth:2.25,floorCrop:1,screenScale:1,stageHeight:.07,stageEdge:.018,stageColor:'#05070a',stageShadow:.55,room:false,cubeField:false,cubes:12,lineField:false,lineOpacity:.62,motion:false,water:.12,traceMotion:false,neuralMotion:false,links:48,signalStyle:'synapse'};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,Number(v)||0));
 function texture(canvas){const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;return t}
 function displayCanvas(source,max=1280){
@@ -73,9 +73,10 @@ function build(group,source,settings={},second=null){
    holder.position.set((rnd(i,33)-.5)*stageWidth*.74,floorY+.25+rnd(i,34)*wallH*.72,wallZ+.16+rnd(i,35)*stageDepth*.78);holder.rotation.set((rnd(i,36)-.5)*.25,(rnd(i,37)-.5)*1.05,(rnd(i,38)-.5)*.22);light.visible=!!s.traceMotion;holder.add(plane);holder.add(light);holder.userData.dioramaLineFragment={path:art.path,light,width:fw,height:fh,baseY:holder.position.y,phase:rnd(i,39)*Math.PI*2,speed:.35+rnd(i,40)*.65};group.add(holder)}
  }
  if(s.neuralMotion&&cubeList.length>1){
-  const links=[];for(let i=0;i<cubeList.length;i++){links.push({a:cubeList[i],b:cubeList[(i+1)%cubeList.length],phase:rnd(i,50),speed:.16+rnd(i,51)*.28});if(i%2===0&&cubeList.length>4)links.push({a:cubeList[i],b:cubeList[(i+3)%cubeList.length],phase:rnd(i,52),speed:.12+rnd(i,53)*.22})}
-  const positions=new Float32Array(links.length*6),wire=new T.LineSegments(new T.BufferGeometry().setAttribute('position',new T.BufferAttribute(positions,3)),new T.LineBasicMaterial({color:0x8ddff6,transparent:true,opacity:.32,depthWrite:false,blending:T.AdditiveBlending}));wire.userData.dioramaNeuralLinks={links};group.add(wire);
-  links.slice(0,20).forEach((link,i)=>{const pulse=new T.Mesh(new T.SphereGeometry(.014,9,7),new T.MeshBasicMaterial({color:i%3?0xbaf5ff:0xffffff,transparent:true,opacity:.95,depthWrite:false,blending:T.AdditiveBlending}));pulse.userData.dioramaSignal={...link,index:i};group.add(pulse)})
+  const candidates=[];for(let a=0;a<cubeList.length;a++)for(let b=a+1;b<cubeList.length;b++){const dist=cubeList[a].position.distanceTo(cubeList[b].position),bias=.72+rnd(a*37+b,50)*.7;candidates.push({a:cubeList[a],b:cubeList[b],ai:a,bi:b,score:dist*bias})}candidates.sort((a,b)=>a.score-b.score);
+  const wanted=Math.max(3,Math.min(300,Math.round(Number(s.links)||state.links),candidates.length)),links=candidates.slice(0,wanted).map((link,i)=>({...link,phase:(rnd(link.ai,61)+i*.013)%1,speed:.16+rnd(i,62)*.3,direction:rnd(i,63)>.34?1:-1}));
+  const positions=new Float32Array(links.length*6),wire=new T.LineSegments(new T.BufferGeometry().setAttribute('position',new T.BufferAttribute(positions,3)),new T.LineBasicMaterial({color:0x8ddff6,transparent:true,opacity:Math.max(.1,.32-links.length*.0006),depthWrite:false,blending:T.AdditiveBlending}));wire.userData.dioramaNeuralLinks={links};group.add(wire);
+  [0,.045,.09].forEach((offset,i)=>{const trailPositions=new Float32Array(links.length*6),trail=new T.LineSegments(new T.BufferGeometry().setAttribute('position',new T.BufferAttribute(trailPositions,3)),new T.LineBasicMaterial({color:i?0x8eeaff:0xf5feff,transparent:true,opacity:[.95,.46,.18][i],depthWrite:false,blending:T.AdditiveBlending}));trail.userData.dioramaSignalTrail={links,offset,style:s.signalStyle||'synapse',head:i===0};group.add(trail)})
  }
  const r=s.rect||state.rect,patch=softPatch(source,r),bw=wallW*r.w,bh=wallH*r.h,obj=new T.Group();obj.position.set((r.x+r.w/2-.5)*wallW,floorY+bh/2,wallZ+clamp(s.depth,0,1.8));obj.rotation.y=clamp(s.tilt,-.9,.9);group.add(obj);
  const patchTex=texture(patch),mesh=new T.Mesh(new T.PlaneGeometry(bw,bh),new T.MeshBasicMaterial({map:patchTex,transparent:true,side:T.DoubleSide,depthWrite:false,toneMapped:false}));obj.add(mesh);mesh.userData.dioramaCutout=true;
@@ -89,11 +90,11 @@ function build(group,source,settings={},second=null){
 }
 function animate(group,time,settings={}){
  const t=time*.001,amp=settings.motion?clamp(settings.water,0,.35):0;group.children.forEach(o=>{const u=o.userData||{};
-  if(u.dioramaCube&&settings.motion){const d=u.dioramaCube;o.position.y=d.baseY+Math.sin(t*d.speed+d.phase)*.055;o.rotation.x+=.0018*d.speed;o.rotation.y+=.0025*d.speed}
+  if(u.dioramaCube){o.scale.setScalar(1);if(settings.motion){const d=u.dioramaCube;o.position.y=d.baseY+Math.sin(t*d.speed+d.phase)*.055;o.rotation.x+=.0018*d.speed;o.rotation.y+=.0025*d.speed}}
   if(u.dioramaLineFragment){const d=u.dioramaLineFragment;o.position.y=d.baseY+(settings.motion?Math.sin(t*d.speed+d.phase)*.026:0);d.light.visible=!!settings.traceMotion;if(d.light.visible&&d.path.length){const p=d.path[Math.floor(((t*d.speed+d.phase)%1)*d.path.length)];d.light.position.set((p.x-.5)*d.width,(.5-p.y)*d.height,.022);const pulse=.8+Math.sin(t*9+d.phase)*.28;d.light.scale.setScalar(pulse)}}
   if(u.dioramaPhotoFloor&&o.geometry&&o.geometry.attributes.position&&amp){const p=o.geometry.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i);p.setZ(i,Math.sin(x*7+t*1.7+y*2.2)*amp*.026+Math.sin(y*5-t*1.25)*amp*.018)}p.needsUpdate=true}
   if(u.dioramaNeuralLinks){const p=o.geometry.attributes.position;u.dioramaNeuralLinks.links.forEach((link,i)=>{p.setXYZ(i*2,link.a.position.x,link.a.position.y,link.a.position.z);p.setXYZ(i*2+1,link.b.position.x,link.b.position.y,link.b.position.z)});p.needsUpdate=true}
-  if(u.dioramaSignal){const d=u.dioramaSignal,q=(t*d.speed+d.phase)%1,e=q*q*(3-2*q);o.position.lerpVectors(d.a.position,d.b.position,e);const pulse=.72+Math.sin(q*Math.PI)*.8;o.scale.setScalar(pulse)}
+  if(u.dioramaSignalTrail){const d=u.dioramaSignalTrail,p=o.geometry.attributes.position;d.links.forEach((link,i)=>{const style=d.style,cycle=(t*link.speed*(style==='flow'?2.2:style==='pulse'?1.15:.58)+link.phase)%1,active=style!=='synapse'||cycle<.3,q0=(style==='synapse'?cycle/.3:cycle)-d.offset,q=Math.max(0,Math.min(1,q0)),len=style==='flow'?.014:style==='pulse'?.026:.042,a=link.direction>0?link.a.position:link.b.position,b=link.direction>0?link.b.position:link.a.position;if(!active||q0<0||q0>1){p.setXYZ(i*2,a.x,a.y,a.z);p.setXYZ(i*2+1,a.x,a.y,a.z);return}const e=q*q*(3-2*q),qe=Math.min(1,q+len),ee=qe*qe*(3-2*qe);p.setXYZ(i*2,a.x+(b.x-a.x)*e,a.y+(b.y-a.y)*e,a.z+(b.z-a.z)*e);p.setXYZ(i*2+1,a.x+(b.x-a.x)*ee,a.y+(b.y-a.y)*ee,a.z+(b.z-a.z)*ee);if(d.head&&style==='synapse'&&cycle>.27&&cycle<.34)b===link.b.position?link.b.scale.setScalar(1.08):link.a.scale.setScalar(1.08)});p.needsUpdate=true}
  });
 }
 window.DioramaMode={build,animate,state};
