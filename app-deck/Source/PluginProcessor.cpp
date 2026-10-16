@@ -73,7 +73,7 @@ public:
   channel.setSelectedId(1);addAndMakeVisible(channel);
   for(auto* b:{&home,&load,&play,&mode})addAndMakeVisible(*b);
   addAndMakeVisible(status);status.setText("Sample Playground  /  Select a channel and load a sample",juce::dontSendNotification);
-  load.onClick=[this]{auto chooser=std::make_shared<juce::FileChooser>("Choose sample",juce::File{},"*.wav;*.aiff;*.mp3");chooser->launchAsync(juce::FileBrowserComponent::openMode|juce::FileBrowserComponent::canSelectFiles,[safe=juce::Component::SafePointer<DeckEditor>(this),chooser](const juce::FileChooser& c){if(safe==nullptr)return;auto f=c.getResult();if(f.existsAsFile()){bool ok=safe->p.load(safe->channel.getSelectedId()-1,f);safe->status.setText(ok?f.getFileName():"Unable to read file",juce::dontSendNotification);}});};
+  load.onClick=[this]{auto* editor=this;auto chooser=std::make_shared<juce::FileChooser>("Choose sample",juce::File{},"*.wav;*.aiff;*.mp3");chooser->launchAsync(juce::FileBrowserComponent::openMode|juce::FileBrowserComponent::canSelectFiles,[safe=juce::Component::SafePointer<DeckEditor>(editor),chooser](const juce::FileChooser& c){if(safe==nullptr)return;auto f=c.getResult();if(f.existsAsFile()){bool ok=safe->p.load(safe->channel.getSelectedId()-1,f);safe->status.setText(ok?f.getFileName():"Unable to read file",juce::dontSendNotification);}});};
   play.onClick=[this]{p.trigger(channel.getSelectedId()-1);};
   mode.onClick=[this]{const juce::ScopedLock g(p.lock);auto& s=p.slots[(size_t)(channel.getSelectedId()-1)];s.loop=!s.loop;status.setText(s.loop?"LOOP mode":"SHOT mode",juce::dontSendNotification);};
   home.onClick=[this]{status.setText("APP DECK  /  Sample Playground",juce::dontSendNotification);};
