@@ -18,7 +18,7 @@ public:
  bool load(int i,juce::File file){
   if(!juce::isPositiveAndBelow(i,count))return false;
   std::unique_ptr<juce::AudioFormatReader> r(formats.createReaderFor(file));
-  if(!r||r->lengthInSamples<=0||r->lengthInSamples>20000000)return false;
+  if(!r||r->lengthInSamples<=0||r->lengthInSamples>20000000||r->numChannels==0)return false;
   auto b=std::make_shared<juce::AudioBuffer<float>>(juce::jlimit(1,2,(int)r->numChannels),(int)r->lengthInSamples);
   if(!r->read(b.get(),0,b->getNumSamples(),0,true,true))return false;
   const juce::ScopedLock g(lock);auto& s=slots[(size_t)i];s.audio=b;s.path=file.getFullPathName();s.sampleRate=r->sampleRate;s.pos=0;s.playing=false;return true;
@@ -26,6 +26,7 @@ public:
  void trigger(int i){const juce::ScopedLock g(lock);auto& s=slots[(size_t)i];s.pos=0;s.playing=true;}
  void processBlock(juce::AudioBuffer<float>& out,juce::MidiBuffer& midi)override{
   juce::ScopedNoDenormals no;out.clear();
+  if(getSampleRate()<=0)return;
   bool hostPlaying=false;double bpm=120,ppq=0;
   if(auto* h=getPlayHead())if(auto p=h->getPosition()){hostPlaying=p->getIsPlaying();bpm=p->getBpm().orFallback(120.0);ppq=p->getPpqPosition().orFallback(0.0);}
   hostTempo.store(bpm);
