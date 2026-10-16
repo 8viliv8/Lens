@@ -9,6 +9,7 @@ public:
  juce::CriticalSection lock;
  juce::AudioFormatManager formats;
  std::atomic<double> hostTempo{120};
+ bool wasHostPlaying=false;
  DeckProcessor():juce::AudioProcessor(BusesProperties().withOutput("Output",juce::AudioChannelSet::stereo(),true)){formats.registerBasicFormats();}
  const juce::String getName() const override{return "APP DECK";}
  void prepareToPlay(double,int) override{}
@@ -32,7 +33,7 @@ public:
   for(const auto meta:midi){auto m=meta.getMessage();if(m.isNoteOn()){int i=m.getNoteNumber()%count;auto& s=slots[(size_t)i];if(!s.loop){s.pos=0;s.playing=true;}}}
   for(int n=0;n<out.getNumSamples();++n){
    double beat=ppq+n*bpm/(60.0*getSampleRate());
-   bool barStart=hostPlaying&&(n==0||std::floor(beat/4.0)>std::floor((beat-bpm/(60.0*getSampleRate()))/4.0));
+   bool barStart=hostPlaying&&((n==0&&!wasHostPlaying)||std::floor(beat/4.0)>std::floor((beat-bpm/(60.0*getSampleRate()))/4.0));
    for(auto& s:slots){
     if(!s.audio)continue;
     if(s.loop){if(!hostPlaying)continue;if(barStart){s.pos=0;s.playing=true;}}
@@ -43,6 +44,7 @@ public:
     s.pos+=s.sampleRate/getSampleRate();
    }
   }
+  wasHostPlaying=hostPlaying;
  }
  juce::AudioProcessorEditor* createEditor()override;
  bool hasEditor()const override{return true;}
