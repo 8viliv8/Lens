@@ -1,0 +1,23 @@
+name: APP DECK Windows VST3
+on:
+  push:
+    branches: [app-deck-v01-build]
+    paths: ['app-deck/**', '.github/workflows/app-deck-windows.yml']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Configure
+        run: cmake -S app-deck -B app-deck/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build app-deck/build --config Release --target AppDeck_VST3 AppDeck_Standalone --parallel 2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: APP-DECK-Windows
+          path: |
+            app-deck/build/AppDeck_artefacts/Release/VST3/**
+            app-deck/build/AppDeck_artefacts/Release/Standalone/**
+          if-no-files-found: error
