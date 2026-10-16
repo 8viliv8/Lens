@@ -7,5 +7,5 @@ juce_add_plugin(AppDeck COMPANY_NAME "APPDECK" BUNDLE_ID "work.urei.appdeck" PLU
 juce_generate_juce_header(AppDeck)
 target_sources(AppDeck PRIVATE Source/PluginProcessor.cpp)
 target_compile_features(AppDeck PRIVATE cxx_std_17)
-target_compile_definitions(AppDeck PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+target_compile_definitions(AppDeck PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
 target_link_libraries(AppDeck PRIVATE juce::juce_audio_utils juce::juce_dsp juce::juce_gui_extra juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
