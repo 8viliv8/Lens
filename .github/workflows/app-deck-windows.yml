@@ -3,6 +3,9 @@ on:
   push:
     branches: [app-deck-v01-build]
     paths: ['app-deck/**', '.github/workflows/app-deck-windows.yml']
+  pull_request:
+    branches: [main]
+    paths: ['app-deck/**', '.github/workflows/app-deck-windows.yml']
   workflow_dispatch:
 permissions:
   contents: write
@@ -31,7 +34,7 @@ jobs:
           Get-Content app-deck/diagnostics/build.log -Tail 160
           if ($code -ne 0) { exit $code }
       - name: Publish diagnostic logs to branch
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         shell: pwsh
         run: |
           $folder = "app-deck/diagnostics"
