@@ -1,13 +1,16 @@
 (()=>{let source=null,fmt='jpeg';const settings={amount:0,softness:.6,feather:.4};
-function process(canvas){if(!settings.amount)return canvas;const out=document.createElement('canvas');out.width=canvas.width;out.height=canvas.height;const c=out.getContext('2d');c.drawImage(canvas,0,0);const w=out.width,h=out.height,amount=settings.amount,soft=settings.softness,feather=settings.feather;
- const edge=Math.max(1,Math.min(w,h)*(.02+amount*.32));const blur=edge*(.02+soft*.75);const inner=Math.max(0,edge-blur*(.35+feather*.65));
- // YOHAKU: soft blank space grows in from the frame edges.
- const mask=document.createElement('canvas');mask.width=w;mask.height=h;const m=mask.getContext('2d');m.fillStyle='#fff';m.fillRect(0,0,w,h);
- const gx=m.createLinearGradient(0,0,w,0);gx.addColorStop(0,'#000');gx.addColorStop(Math.min(.49,edge/w),'#fff');gx.addColorStop(Math.max(.51,1-edge/w),'#fff');gx.addColorStop(1,'#000');
- const gy=m.createLinearGradient(0,0,0,h);gy.addColorStop(0,'#000');gy.addColorStop(Math.min(.49,edge/h),'#fff');gy.addColorStop(Math.max(.51,1-edge/h),'#fff');gy.addColorStop(1,'#000');
- m.globalCompositeOperation='multiply';m.fillStyle=gx;m.fillRect(0,0,w,h);m.fillStyle=gy;m.fillRect(0,0,w,h);
- c.save();c.globalCompositeOperation='destination-in';c.drawImage(mask,0,0);c.restore();
- const finished=document.createElement('canvas');finished.width=w;finished.height=h;const q=finished.getContext('2d');q.fillStyle='#f4f2ec';q.fillRect(0,0,w,h);q.drawImage(out,0,0);return finished}
+function process(canvas){if(!settings.amount)return canvas;
+ const w=canvas.width,h=canvas.height,out=document.createElement('canvas');out.width=w;out.height=h;
+ const q=out.getContext('2d');q.fillStyle='#f4f2ec';q.fillRect(0,0,w,h);
+ const short=Math.min(w,h),edge=short*(.015+settings.amount*.34),transition=Math.max(1,edge*(.08+settings.softness*.90)),inner=Math.max(0,edge-transition);
+ const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)};
+ const alpha=document.createElement('canvas');alpha.width=w;alpha.height=h;const a=alpha.getContext('2d'),mask=a.createImageData(w,h),d=mask.data;
+ const fx=new Float32Array(w),fy=new Float32Array(h);
+ for(let x=0;x<w;x++){const t=smooth((Math.min(x,w-1-x)-inner)/Math.max(1,edge-inner));fx[x]=Math.pow(t,.65+settings.feather*1.5)}
+ for(let y=0;y<h;y++){const t=smooth((Math.min(y,h-1-y)-inner)/Math.max(1,edge-inner));fy[y]=Math.pow(t,.65+settings.feather*1.5)}
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=(y*w+x)*4;d[i]=d[i+1]=d[i+2]=255;d[i+3]=Math.round(255*fx[x]*fy[y])}
+ a.putImageData(mask,0,0);
+ const photo=document.createElement('canvas');photo.width=w;photo.height=h;const p=photo.getContext('2d');p.drawImage(canvas,0,0);p.globalCompositeOperation='destination-in';p.drawImage(alpha,0,0);q.drawImage(photo,0,0);return out}
 function download(canvas,format){const mime=format==='png'?'image/png':'image/jpeg',ext=format==='png'?'png':'jpg';canvas.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='NOIR_'+Date.now()+'.'+ext;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)},mime,format==='png'?undefined:.95)}
 function ensure(){let root=document.getElementById('yohakuDialog');if(root)return root;root=document.createElement('div');root.id='yohakuDialog';root.style.cssText='position:fixed;inset:0;background:#000e;z-index:1000;display:none;overflow:auto;padding:max(25px,env(safe-area-inset-top)) 16px max(30px,env(safe-area-inset-bottom));color:white;font-family:-apple-system,sans-serif';root.innerHTML='<div style="max-width:480px;margin:auto"><h2 style="font-weight:400;letter-spacing:.22em">YOHAKU <small style="font-size:11px;letter-spacing:0">BEFORE EXPORT</small></h2><canvas id="yohakuPreview" style="width:100%;max-height:48vh;object-fit:contain;background:#eee"></canvas><p style="font-size:12px;color:#bbb">余白の量と境界の柔らかさを調整してから書き出します。</p>'+[['amount','AMOUNT',0,1,.01],['softness','SOFTNESS',0,1,.01],['feather','FEATHER',0,1,.01]].map(([k,label,min,max,step])=>'<label style="display:flex;align-items:center;gap:12px;margin:17px 0;font-size:12px">'+label+'<input data-yohaku="'+k+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+settings[k]+'" style="flex:1;min-width:0"><output id="yo-'+k+'">'+settings[k]+'</output></label>').join('')+'<div style="display:flex;gap:10px"><button id="yohakuCancel" style="flex:1;padding:15px;background:#222;color:white;border:1px solid #666">CANCEL</button><button id="yohakuSave" style="flex:1;padding:15px;background:white;color:black;border:0">EXPORT ↓</button></div></div>';document.body.appendChild(root);
  function preview(){if(!source)return;const c=root.querySelector('#yohakuPreview'),max=700,k=Math.min(1,max/Math.max(source.width,source.height));c.width=Math.max(1,Math.round(source.width*k));c.height=Math.max(1,Math.round(source.height*k));const temp=document.createElement('canvas');temp.width=c.width;temp.height=c.height;temp.getContext('2d').drawImage(source,0,0,c.width,c.height);c.getContext('2d').drawImage(process(temp),0,0)}
