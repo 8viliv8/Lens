@@ -1,20 +1,71 @@
-(()=>{let source=null,fmt='jpeg';const settings={amount:0,softness:.6,feather:.4};
-function process(canvas){if(!settings.amount)return canvas;
- const w=canvas.width,h=canvas.height,out=document.createElement('canvas');out.width=w;out.height=h;
- const q=out.getContext('2d');q.fillStyle='#f4f2ec';q.fillRect(0,0,w,h);
- const short=Math.min(w,h),edge=short*(.015+settings.amount*.34),transition=Math.max(1,edge*(.08+settings.softness*.90)),inner=Math.max(0,edge-transition);
- const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)};
- const alpha=document.createElement('canvas');alpha.width=w;alpha.height=h;const a=alpha.getContext('2d'),mask=a.createImageData(w,h),d=mask.data;
- const fx=new Float32Array(w),fy=new Float32Array(h);
- for(let x=0;x<w;x++){const t=smooth((Math.min(x,w-1-x)-inner)/Math.max(1,edge-inner));fx[x]=Math.pow(t,.65+settings.feather*1.5)}
- for(let y=0;y<h;y++){const t=smooth((Math.min(y,h-1-y)-inner)/Math.max(1,edge-inner));fy[y]=Math.pow(t,.65+settings.feather*1.5)}
- for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=(y*w+x)*4;d[i]=d[i+1]=d[i+2]=255;d[i+3]=Math.round(255*fx[x]*fy[y])}
- a.putImageData(mask,0,0);
- const photo=document.createElement('canvas');photo.width=w;photo.height=h;const p=photo.getContext('2d');p.drawImage(canvas,0,0);p.globalCompositeOperation='destination-in';p.drawImage(alpha,0,0);q.drawImage(photo,0,0);return out}
-function download(canvas,format){const mime=format==='png'?'image/png':'image/jpeg',ext=format==='png'?'png':'jpg';canvas.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='NOIR_'+Date.now()+'.'+ext;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)},mime,format==='png'?undefined:.95)}
-function ensure(){let root=document.getElementById('yohakuDialog');if(root)return root;root=document.createElement('div');root.id='yohakuDialog';root.style.cssText='position:fixed;inset:0;background:#000e;z-index:1000;display:none;overflow:auto;padding:max(25px,env(safe-area-inset-top)) 16px max(30px,env(safe-area-inset-bottom));color:white;font-family:-apple-system,sans-serif';root.innerHTML='<div style="max-width:480px;margin:auto"><h2 style="font-weight:400;letter-spacing:.22em">YOHAKU <small style="font-size:11px;letter-spacing:0">BEFORE EXPORT</small></h2><canvas id="yohakuPreview" style="width:100%;max-height:48vh;object-fit:contain;background:#eee"></canvas><p style="font-size:12px;color:#bbb">余白の量と境界の柔らかさを調整してから書き出します。</p>'+[['amount','AMOUNT',0,1,.01],['softness','SOFTNESS',0,1,.01],['feather','FEATHER',0,1,.01]].map(([k,label,min,max,step])=>'<label style="display:flex;align-items:center;gap:12px;margin:17px 0;font-size:12px">'+label+'<input data-yohaku="'+k+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+settings[k]+'" style="flex:1;min-width:0"><output id="yo-'+k+'">'+settings[k]+'</output></label>').join('')+'<div style="display:flex;gap:10px"><button id="yohakuCancel" style="flex:1;padding:15px;background:#222;color:white;border:1px solid #666">CANCEL</button><button id="yohakuSave" style="flex:1;padding:15px;background:white;color:black;border:0">EXPORT ↓</button></div></div>';document.body.appendChild(root);
- function preview(){if(!source)return;const c=root.querySelector('#yohakuPreview'),max=700,k=Math.min(1,max/Math.max(source.width,source.height));c.width=Math.max(1,Math.round(source.width*k));c.height=Math.max(1,Math.round(source.height*k));const temp=document.createElement('canvas');temp.width=c.width;temp.height=c.height;temp.getContext('2d').drawImage(source,0,0,c.width,c.height);c.getContext('2d').drawImage(process(temp),0,0)}
- root.querySelectorAll('[data-yohaku]').forEach(el=>el.oninput=()=>{settings[el.dataset.yohaku]=+el.value;root.querySelector('#yo-'+el.dataset.yohaku).textContent=(+el.value).toFixed(2);preview()});
- root.querySelector('#yohakuCancel').onclick=()=>root.style.display='none';root.querySelector('#yohakuSave').onclick=()=>{root.style.display='none';download(process(source),fmt)};root.refresh=preview;return root}
-function save(canvas,format='jpeg'){if(!canvas)return;source=canvas;fmt=format;const root=ensure();root.style.display='block';root.refresh()}
-window.ExportFX={save};})();
+(()=>{
+'use strict';
+let source=null,format='jpeg';
+const settings={amount:8,color:'#f4f2ec',ratio:'original'};
+const ratios={'1:1':1,'3:4':3/4,'4:5':4/5,'16:9':16/9};
+function process(canvas){
+ const w=canvas.width,h=canvas.height;
+ const m=Math.round(Math.min(w,h)*settings.amount/100);
+ let W=w+2*m,H=h+2*m;
+ const r=ratios[settings.ratio];
+ if(r){if(W/H>r)H=Math.ceil(W/r);else W=Math.ceil(H*r)}
+ const out=document.createElement('canvas');out.width=W;out.height=H;
+ const ctx=out.getContext('2d');ctx.fillStyle=settings.color;ctx.fillRect(0,0,W,H);
+ ctx.drawImage(canvas,Math.floor((W-w)/2),Math.floor((H-h)/2));return out;
+}
+function download(canvas,type){
+ const png=type==='png',mime=png?'image/png':'image/jpeg';
+ canvas.toBlob(blob=>{
+  if(!blob){alert('書き出しに失敗しました');return}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='NOIR_'+Date.now()+(png?'.png':'.jpg');
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+ },mime,png?undefined:.95);
+}
+function ensure(){
+ let root=document.getElementById('yohakuDialog');if(root)return root;
+ root=document.createElement('div');root.id='yohakuDialog';
+ root.style.cssText='position:fixed;inset:0;z-index:1000;display:none;overflow:auto;background:#101010f5;color:white;padding:max(24px,env(safe-area-inset-top)) 16px max(32px,env(safe-area-inset-bottom));font-family:-apple-system,BlinkMacSystemFont,sans-serif';
+ root.innerHTML=`<div style="max-width:480px;margin:auto">
+ <h2 style="font-weight:400;letter-spacing:.2em">YOHAKU <small style="font-size:11px;letter-spacing:0">BEFORE EXPORT</small></h2>
+ <canvas id="yohakuPreview" style="display:block;width:100%;max-height:48vh;object-fit:contain;background:#292929"></canvas>
+ <label style="display:block;margin:22px 0;font-size:12px;letter-spacing:.1em">AMOUNT <output id="yo-amount">8%</output>
+ <input id="yoAmount" type="range" min="0" max="50" step="1" value="8" style="display:block;width:100%;margin-top:12px"></label>
+ <div style="margin:20px 0;font-size:12px;letter-spacing:.1em">COLOR
+ <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+ <button data-color="#ffffff">WHITE</button><button data-color="#f4f2ec">IVORY</button><button data-color="#000000">BLACK</button>
+ <input id="yoColor" type="color" value="#f4f2ec" aria-label="自由な枠色" style="height:38px;width:48px;flex-shrink:0"></div></div>
+ <label style="display:block;margin:20px 0;font-size:12px;letter-spacing:.1em">RATIO
+ <select id="yoRatio" style="display:block;width:100%;padding:12px;margin-top:10px;background:#222;color:white;border:1px solid #666">
+ <option value="original">ORIGINAL</option><option value="1:1">1:1</option><option value="3:4">3:4</option><option value="4:5">4:5</option><option value="16:9">16:9</option></select></label>
+ <div style="display:flex;gap:10px;margin-top:24px">
+ <button id="yohakuCancel" style="flex:1;padding:15px;background:#222;color:white;border:1px solid #666">CANCEL</button>
+ <button id="yohakuSave" style="flex:1;padding:15px;background:white;color:black;border:0">EXPORT ↓</button></div></div>`;
+ document.body.appendChild(root);
+ function preview(){
+  if(!source)return;
+  const max=700,k=Math.min(1,max/Math.max(source.width,source.height));
+  const temp=document.createElement('canvas');temp.width=Math.max(1,Math.round(source.width*k));temp.height=Math.max(1,Math.round(source.height*k));
+  temp.getContext('2d').drawImage(source,0,0,temp.width,temp.height);
+  const result=process(temp),view=root.querySelector('#yohakuPreview');
+  view.width=result.width;view.height=result.height;view.getContext('2d').drawImage(result,0,0);
+ }
+ const amount=root.querySelector('#yoAmount'),color=root.querySelector('#yoColor'),ratio=root.querySelector('#yoRatio');
+ amount.oninput=()=>{settings.amount=+amount.value;root.querySelector('#yo-amount').textContent=amount.value+'%';preview()};
+ color.oninput=()=>{settings.color=color.value;preview()};
+ root.querySelectorAll('[data-color]').forEach(b=>{
+  b.style.cssText='padding:10px 5px;background:#222;color:white;border:1px solid #666;font-size:10px;flex:1;min-width:0';
+  b.onclick=()=>{settings.color=b.dataset.color;color.value=settings.color;preview()};
+ });
+ ratio.onchange=()=>{settings.ratio=ratio.value;preview()};
+ root.querySelector('#yohakuCancel').onclick=()=>root.style.display='none';
+ root.querySelector('#yohakuSave').onclick=()=>{root.style.display='none';download(process(source),format)};
+ root.refresh=preview;return root;
+}
+function save(canvas,type='jpeg'){
+ if(!canvas)return;source=canvas;format=type;
+ const root=ensure();root.style.display='block';root.refresh();
+}
+window.ExportFX={save};
+})();
