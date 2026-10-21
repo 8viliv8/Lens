@@ -1,0 +1,45 @@
+[0/2] Re-checking globbed directories...
+[1/43] Generating AppDeck_artefacts/JuceLibraryCode/JuceHeader.h
+[2/43] Building CXX object CMakeFiles\AppDeck_vst3_helper.dir\_deps\juce-src\modules\juce_audio_plugin_client\VST3\juce_VST3ManifestHelper.cpp.obj
+[3/43] Building CXX object CMakeFiles\AppDeck.dir\Source\PluginProcessor.cpp.obj
+[4/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_audio_processors\juce_audio_processors_ara.cpp.obj
+[5/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_audio_processors\juce_audio_processors_lv2_libs.cpp.obj
+[6/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_gui_extra\juce_gui_extra.cpp.obj
+[7/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_audio_processors\juce_audio_processors.cpp.obj
+[8/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_graphics\juce_graphics.cpp.obj
+[9/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_gui_basics\juce_gui_basics.cpp.obj
+[10/43] Building C object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_graphics\juce_graphics_Sheenbidi.c.obj
+[11/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_events\juce_events.cpp.obj
+[12/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_core\juce_core.cpp.obj
+[13/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_core\juce_core_CompilationTime.cpp.obj
+[14/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_data_structures\juce_data_structures.cpp.obj
+[15/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_graphics\juce_graphics_Harfbuzz.cpp.obj
+[16/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_audio_basics\juce_audio_basics.cpp.obj
+[17/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_audio_utils\juce_audio_utils.cpp.obj
+[18/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_audio_formats\juce_audio_formats.cpp.obj
+[19/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_audio_devices\juce_audio_devices.cpp.obj
+[20/43] Linking CXX executable AppDeck_vst3_helper.exe
+[21/43] Generating AppDeck_artefacts/JuceLibraryCode/AppDeck_resources.rc
+[22/43] Building CXX object CMakeFiles\AppDeck_Standalone.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_AAX.cpp.obj
+[23/43] Building CXX object CMakeFiles\AppDeck_Standalone.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_AAX_utils.cpp.obj
+[24/43] Building CXX object CMakeFiles\AppDeck_Standalone.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_ARA.cpp.obj
+[25/43] Building CXX object CMakeFiles\AppDeck_Standalone.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_LV2.cpp.obj
+[26/43] Building CXX object CMakeFiles\AppDeck.dir\_deps\juce-src\modules\juce_dsp\juce_dsp.cpp.obj
+[27/43] Linking CXX static library "AppDeck_artefacts\Release\APP DECK_SharedCode.lib"
+[28/43] Building CXX object CMakeFiles\AppDeck_Standalone.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_Unity.cpp.obj
+[29/43] Building CXX object CMakeFiles\AppDeck_Standalone.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_VST2.cpp.obj
+[30/43] Building CXX object CMakeFiles\AppDeck_Standalone.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_VST3.cpp.obj
+[31/43] Building RC object CMakeFiles\AppDeck_rc_lib.dir\AppDeck_artefacts\JuceLibraryCode\AppDeck_resources.rc.res
+[32/43] Building CXX object CMakeFiles\AppDeck_VST3.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_AAX.cpp.obj
+[33/43] Building CXX object CMakeFiles\AppDeck_VST3.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_AAX_utils.cpp.obj
+[34/43] Building CXX object CMakeFiles\AppDeck_VST3.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_ARA.cpp.obj
+[35/43] Building CXX object CMakeFiles\AppDeck_VST3.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_LV2.cpp.obj
+[36/43] Building CXX object CMakeFiles\AppDeck_VST3.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_Standalone.cpp.obj
+[37/43] Building CXX object CMakeFiles\AppDeck_VST3.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_Unity.cpp.obj
+[38/43] Building CXX object CMakeFiles\AppDeck_VST3.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_VST2.cpp.obj
+[39/43] Building CXX object CMakeFiles\AppDeck_Standalone.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_Standalone.cpp.obj
+[40/43] Linking CXX executable "AppDeck_artefacts\Release\Standalone\APP DECK.exe"
+[41/43] Building CXX object CMakeFiles\AppDeck_VST3.dir\_deps\juce-src\modules\juce_audio_plugin_client\juce_audio_plugin_client_VST3.cpp.obj
+[42/43] Linking CXX shared module "AppDeck_artefacts\Release\VST3\APP DECK.vst3\Contents\x86_64-win\APP DECK.vst3"
+removing moduleinfo.json
+creating D:/a/Lens/Lens/app-deck/build/AppDeck_artefacts/Release/VST3/APP DECK.vst3
